@@ -39,6 +39,8 @@ Las tablas de `00000000000002_gimnasio.sql` (biblioteca de ejercicios, rutinas, 
 
 `00000000000003_horario.sql` agrega `schedule_categories` y `schedule_blocks` (materias/actividades y horario semanal, hito 1C) y una columna `category_id` en `tasks`.
 
+`00000000000004_seed_exercises.sql` siembra 876 ejercicios de [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (dominio público) en `exercises` como biblioteca global (`user_id null`), para el módulo de gimnasio.
+
 ## Desarrollo
 
 ```bash
@@ -47,6 +49,7 @@ npm run build     # build de producción
 npm run start     # sirve el build de producción
 npm run lint      # ESLint
 npx tsc --noEmit  # chequeo de tipos
+npm run test      # Vitest
 ```
 
 ## PWA

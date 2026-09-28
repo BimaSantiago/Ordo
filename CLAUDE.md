@@ -41,7 +41,7 @@ App personal, de un solo usuario, para organizar el día a día. Reemplaza el en
 | Modo sin conexión | Service worker + IndexedDB (p. ej. Dexie), con sincronización al recuperar señal |
 | Automatizaciones | Supabase Edge Functions + cron (o n8n si hace falta) |
 | Calendario | API de Google Calendar (OAuth), fase posterior |
-| Biblioteca de ejercicios | free-exercise-db (datos abiertos, se siembra en la base) o API de wger; decidir al implementar |
+| Biblioteca de ejercicios | **Decidido: free-exercise-db** (datos abiertos, dominio público, sembrados en la base) |
 | Envoltura nativa (solo si hace falta) | Capacitor, por ejemplo para leer Health Connect si Fitia escribe ahí |
 
 Costo objetivo: 0 a 5 USD al mes.
@@ -157,7 +157,6 @@ Todas las tablas llevan `user_id`, `created_at`, `updated_at` y **RLS activado**
 ## 9. Pendientes abiertos
 
 - Definir el modelo de hábitos (diarios, por días de la semana, con meta numérica) con el usuario al iniciar la fase 1.
-- Elegir la fuente de la biblioteca de ejercicios (free-exercise-db o wger) y revisar su licencia y cobertura de nombres en español.
 - Confirmar si Fitia escribe en Health Connect.
 - Decidir nombre y diseño visual de la app.
 
@@ -177,9 +176,10 @@ npm run build     # build de producción
 npm run start     # sirve el build de producción
 npm run lint       # ESLint (eslint-config-next)
 npx tsc --noEmit  # chequeo de tipos, sin emitir archivos
+npm run test      # Vitest (modo run, sin watch)
 ```
 
-No hay corredor de pruebas configurado todavía; cuando se agregue lógica delicada (rachas, 1RM, guardado de entrenamiento en curso, zonas horarias) instala Vitest y documenta aquí el comando.
+Vitest cubre la lógica delicada: guardado/recuperación del entrenamiento en curso (`lib/gimnasio/workout-draft.test.ts`, usando `fake-indexeddb` para simular IndexedDB en Node vía `vitest.setup.mts`) y los cálculos en vivo de duración/volumen (`lib/gimnasio/live-stats.test.ts`). El config vive en `vitest.config.mts` (extensión `.mts`, no `.ts`, para que Vite no advierta por sintaxis ESM en un archivo cargado como CommonJS).
 
 ### Convención de rutas (Next.js 16)
 
@@ -206,6 +206,16 @@ Mismo patrón que "Hoy": `page.tsx` Server Component + `actions.ts` con Server A
 
 `schedule_blocks.day_of_week` (0=domingo..6=sábado) se resuelve para "hoy" con `getLocalDayOfWeek()` en `lib/date.ts` — es aritmética de calendario, no depende de zona horaria del servidor. `AppNav` (`components/app-nav.tsx`) es la barra compartida (Hoy/Horario/Materias + Salir) que reemplaza el header suelto que tenía `app/hoy/page.tsx`; `signOut` sigue viviendo en `app/hoy/actions.ts` y se importa desde ahí.
 
+### Módulo "Gimnasio" (`app/gimnasio/`)
+
+Hub en `/gimnasio` con enlaces a `/gimnasio/ejercicios`, `/gimnasio/rutinas` y `/gimnasio/entrenar` (progreso/récords quedan para cuando se implemente esa parte del hito 1B). Ejercicios y rutinas siguen el patrón `page.tsx`/`actions.ts` ya establecido. `entrenar/` es distinto porque su estado vive primero en el navegador:
+
+- `lib/gimnasio/workout-draft.ts`: Dexie (`life-os-gimnasio`, tabla `drafts`) guarda el **entrenamiento en curso** bajo un id fijo (`"active"`, solo puede haber uno). `workout-session.tsx` (Client Component) lee/escribe ahí en cada cambio — así la sesión sobrevive a cierres de la app, recargas y pérdida de señal sin depender de Supabase mientras se entrena.
+- `lib/gimnasio/live-stats.ts`: cálculos puros (duración transcurrida, volumen, series completadas) sobre el draft, cubiertos por Vitest.
+- `app/gimnasio/entrenar/actions.ts`: `getPreviousExerciseSets` (referencia de la sesión anterior por ejercicio) y `finishWorkout` (vuelca el draft completo a `workouts`/`workout_exercises`/`workout_sets` vía `upsert` y limpia Dexie). Solo se toca Supabase al agregar ejercicios, consultar referencia o finalizar — nunca en cada tecla.
+- `lib/exercises.ts`: traduce a español grupo muscular/equipo de los ejercicios sembrados desde free-exercise-db (que quedan en inglés en la base, ver `supabase/migrations/00000000000004_seed_exercises.sql`) sin bifurcar la fuente de datos.
+- Notificaciones del temporizador de descanso (`rest-timer.tsx`) son in-app únicamente (cuenta regresiva visible), como indica la sección 7 hasta que se implementen push notifications.
+
 ### `lib/date.ts`
 
 Centraliza el cálculo de `local_date` (America/Mexico_City) usado por hábitos, peso y (luego) comida, para que las rachas y los cortes de día no dependan de la zona horaria del servidor/cliente. Cualquier tabla con `local_date` debe calcularlo con `getLocalDateString()`, no con `new Date().toISOString()`. `getLocalDayOfWeek()` y `WEEKDAY_LABELS` sirven al horario semanal.
@@ -217,6 +227,7 @@ Migraciones SQL planas (sin CLI de Supabase todavía integrada al flujo). Cada t
 - `00000000000001_core.sql`: tablas del hito 1A (`projects`, `habits`, `habit_logs`, `tasks`, `ideas`, `notes`, `body_weight_logs`, `body_measurements`).
 - `00000000000002_gimnasio.sql`: esquema completo del hito 1B (`exercises`, `routines`, `routine_exercises`, `workouts`, `workout_exercises`, `workout_sets`, `personal_records`), creado por adelantado pero sin UI todavía.
 - `00000000000003_horario.sql`: hito 1C (`schedule_categories`, `schedule_blocks`) y columna `tasks.category_id`.
+- `00000000000004_seed_exercises.sql`: siembra 876 ejercicios de free-exercise-db en `exercises` con `user_id null` (biblioteca global). Nombres y grupos musculares en inglés tal cual el dataset; ver `lib/exercises.ts` para la traducción en la capa de presentación.
 
 Al aplicar migraciones nuevas, sigue la convención de nombre `NNNNNNNNNNNNNN_descripcion.sql` (timestamp o número secuencial) para que se ejecuten en orden.
 

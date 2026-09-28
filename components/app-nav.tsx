@@ -5,6 +5,7 @@ const LINKS = [
   { href: "/hoy", label: "Hoy" },
   { href: "/horario", label: "Horario" },
   { href: "/materias", label: "Materias" },
+  { href: "/gimnasio", label: "Gimnasio" },
 ];
 
 export function AppNav({ current }: { current: string }) {
