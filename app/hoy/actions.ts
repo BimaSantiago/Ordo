@@ -16,6 +16,7 @@ async function requireUserId() {
 export async function createTask(formData: FormData) {
   const title = (formData.get("title") as string)?.trim();
   if (!title) return;
+  const categoryId = (formData.get("category_id") as string) || null;
 
   const { supabase, userId } = await requireUserId();
   await supabase.from("tasks").insert({
@@ -23,6 +24,7 @@ export async function createTask(formData: FormData) {
     user_id: userId,
     title,
     due_date: getLocalDateString(),
+    category_id: categoryId,
   });
 
   revalidatePath("/hoy");

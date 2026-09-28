@@ -19,3 +19,19 @@ export function formatDisplayDate(localDate: string): string {
     month: "long",
   }).format(date);
 }
+
+/** Día de la semana (0=domingo..6=sábado) de una fecha local YYYY-MM-DD, para `schedule_blocks`. */
+export function getLocalDayOfWeek(localDate: string): number {
+  const [year, month, day] = localDate.split("-").map(Number);
+  return new Date(year, month - 1, day).getDay();
+}
+
+export const WEEKDAY_LABELS = [
+  "Domingo",
+  "Lunes",
+  "Martes",
+  "Miércoles",
+  "Jueves",
+  "Viernes",
+  "Sábado",
+] as const;

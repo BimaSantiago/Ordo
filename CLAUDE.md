@@ -9,11 +9,12 @@ App personal, de un solo usuario, para organizar el día a día. Reemplaza el en
 **Problemas que debe resolver (en orden de prioridad):**
 1. Mantener hábitos.
 2. Organizar el día a día (agenda, horarios, tareas).
-3. Dar seguimiento a proyectos e ideas.
-4. Registrar entrenamientos y ver la progresión por ejercicio y el peso corporal.
-5. Control financiero.
-6. Control alimenticio.
-7. Notas importantes.
+3. Horario semanal con materias/áreas (escuela y actividades como entrenar, estudiar, jugar) y las tareas de cada una vinculadas a su día.
+4. Dar seguimiento a proyectos e ideas.
+5. Registrar entrenamientos y ver la progresión por ejercicio y el peso corporal.
+6. Control financiero.
+7. Control alimenticio.
+8. Notas importantes.
 
 **Perfil de uso:**
 - Usa sobre todo el **celular Android**; a veces la computadora.
@@ -47,7 +48,7 @@ Costo objetivo: 0 a 5 USD al mes.
 
 ## 4. Fases de desarrollo
 
-**Fase 1 (empezar aquí): núcleo diario y gimnasio**, en dos hitos:
+**Fase 1 (empezar aquí): núcleo diario, horario/materias y gimnasio**, en tres hitos:
 
 *Hito 1A: base y día a día*
 - Login (Supabase Auth) y esqueleto de la app instalable como PWA.
@@ -57,6 +58,11 @@ Costo objetivo: 0 a 5 USD al mes.
 - Registro de peso corporal con gráfica de tendencia.
 - Botón "+" siempre visible para captura rápida.
 - Modo sin conexión básico.
+
+*Hito 1C: materias y horario semanal* (detallado en la sección 5.1)
+- "Materias" = categorías amplias: materias escolares (Cálculo, Química...) y bloques de vida diaria (entrenar, estudiar, jugar, etc.), cada una con nombre y color.
+- Horario semanal recurrente (lunes a domingo) armado con bloques por materia/actividad, hora de inicio y fin.
+- Las tareas se pueden vincular a una materia/actividad; la vista "Hoy" muestra el horario del día junto con las tareas de esas materias que vencen ese día.
 
 *Hito 1B: módulo de gimnasio* (detallado en la sección 5)
 - Biblioteca de ejercicios, rutinas, registro de entrenamiento en vivo, historial, récords y gráficas de progresión.
@@ -70,6 +76,14 @@ Costo objetivo: 0 a 5 USD al mes.
 - Verificar si Fitia escribe en Health Connect; si es así, evaluar Capacitor para leerlo automáticamente.
 
 Extras posteriores: sincronización con Google Calendar, notificaciones y recordatorios, resumen diario, exportación/respaldo.
+
+## 5.1 Módulo de materias y horario semanal (requisitos)
+
+**Materias/áreas** (`schedule_categories`): lista corta y personal de categorías con nombre, color y tipo libre (p. ej. "escuela" o "actividad") solo para agrupar visualmente — no hay lógica distinta por tipo. Crear, editar, archivar. Ejemplos: Cálculo, Química, Entrenamiento, Estudio, Ocio/Juego.
+
+**Horario semanal** (`schedule_blocks`): bloques recurrentes por día de la semana (0=domingo..6=sábado) con hora de inicio, hora de fin, materia/actividad asociada y notas opcionales (p. ej. salón, liga). Se repiten cada semana; no son eventos de una fecha específica — para eso ya existen las tareas con `due_date`. Vista semanal tipo grid (columnas = días, franjas = horas) para ver y editar el horario de un vistazo. Pantalla propia (`/horario`) más gestión de materias (`/materias`).
+
+**Vínculo con tareas:** `tasks.category_id` (opcional) conecta una tarea con una materia/actividad. La vista "Hoy" muestra, además de lo que ya tiene, los bloques del horario que tocan ese día de la semana y agrupa/etiqueta las tareas del día por su materia cuando aplica.
 
 ## 5. Módulo de gimnasio (requisitos)
 
@@ -103,7 +117,9 @@ Todas las tablas llevan `user_id`, `created_at`, `updated_at` y **RLS activado**
 
 - `habits` (nombre, frecuencia, meta, archivado)
 - `habit_logs` (habit_id, local_date, cumplido, nota)
-- `tasks` (título, notas, fecha, prioridad, estado, project_id)
+- `schedule_categories` (nombre, color, tipo, archivada) — materias escolares y actividades de vida diaria
+- `schedule_blocks` (category_id, día de la semana 0-6, hora inicio, hora fin, notas) — horario semanal recurrente
+- `tasks` (título, notas, fecha, prioridad, estado, project_id, category_id opcional → `schedule_categories`)
 - `projects` (nombre, estado, descripción, próximos pasos)
 - `ideas`, `notes`
 - `body_weight_logs` (local_date, peso_kg)
@@ -184,9 +200,15 @@ Patrón a seguir para las demás pantallas:
 - Los ids se generan en el servidor con `crypto.randomUUID()` en las Server Actions; cuando se implemente la sincronización offline (IndexedDB), los ids deberán generarse en el cliente para poder crear registros sin conexión, como indica la sección 6.
 - Piezas interactivas mínimas (`task-item.tsx`, `habit-item.tsx`) son Client Components con `useTransition` que llaman a las Server Actions directamente — no hay una capa de estado global ni store del cliente.
 
+### Módulos "Materias" (`app/materias/`) y "Horario" (`app/horario/`)
+
+Mismo patrón que "Hoy": `page.tsx` Server Component + `actions.ts` con Server Actions que revalidan `/materias`, `/horario` y `/hoy` a la vez (comparten datos: una categoría archivada o un bloque nuevo deben reflejarse también en "Hoy"). `category-item.tsx` y `block-item.tsx` son los Client Components mínimos con `useTransition`, igual que `task-item.tsx`/`habit-item.tsx`.
+
+`schedule_blocks.day_of_week` (0=domingo..6=sábado) se resuelve para "hoy" con `getLocalDayOfWeek()` en `lib/date.ts` — es aritmética de calendario, no depende de zona horaria del servidor. `AppNav` (`components/app-nav.tsx`) es la barra compartida (Hoy/Horario/Materias + Salir) que reemplaza el header suelto que tenía `app/hoy/page.tsx`; `signOut` sigue viviendo en `app/hoy/actions.ts` y se importa desde ahí.
+
 ### `lib/date.ts`
 
-Centraliza el cálculo de `local_date` (America/Mexico_City) usado por hábitos, peso y (luego) comida, para que las rachas y los cortes de día no dependan de la zona horaria del servidor/cliente. Cualquier tabla con `local_date` debe calcularlo con `getLocalDateString()`, no con `new Date().toISOString()`.
+Centraliza el cálculo de `local_date` (America/Mexico_City) usado por hábitos, peso y (luego) comida, para que las rachas y los cortes de día no dependan de la zona horaria del servidor/cliente. Cualquier tabla con `local_date` debe calcularlo con `getLocalDateString()`, no con `new Date().toISOString()`. `getLocalDayOfWeek()` y `WEEKDAY_LABELS` sirven al horario semanal.
 
 ### Base de datos (`supabase/migrations/`)
 
@@ -194,6 +216,7 @@ Migraciones SQL planas (sin CLI de Supabase todavía integrada al flujo). Cada t
 
 - `00000000000001_core.sql`: tablas del hito 1A (`projects`, `habits`, `habit_logs`, `tasks`, `ideas`, `notes`, `body_weight_logs`, `body_measurements`).
 - `00000000000002_gimnasio.sql`: esquema completo del hito 1B (`exercises`, `routines`, `routine_exercises`, `workouts`, `workout_exercises`, `workout_sets`, `personal_records`), creado por adelantado pero sin UI todavía.
+- `00000000000003_horario.sql`: hito 1C (`schedule_categories`, `schedule_blocks`) y columna `tasks.category_id`.
 
 Al aplicar migraciones nuevas, sigue la convención de nombre `NNNNNNNNNNNNNN_descripcion.sql` (timestamp o número secuencial) para que se ejecuten en orden.
 

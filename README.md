@@ -37,6 +37,8 @@ O bien copia y ejecuta el contenido de cada archivo, en orden, desde el SQL Edit
 
 Las tablas de `00000000000002_gimnasio.sql` (biblioteca de ejercicios, rutinas, entrenamientos) quedan creadas desde ahora para el hito 1B, aunque la interfaz de esta fase todavía no las use.
 
+`00000000000003_horario.sql` agrega `schedule_categories` y `schedule_blocks` (materias/actividades y horario semanal, hito 1C) y una columna `category_id` en `tasks`.
+
 ## Desarrollo
 
 ```bash

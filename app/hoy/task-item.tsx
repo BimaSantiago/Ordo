@@ -7,10 +7,14 @@ export function TaskItem({
   id,
   title,
   completed,
+  categoryName,
+  categoryColor,
 }: {
   id: string;
   title: string;
   completed: boolean;
+  categoryName?: string | null;
+  categoryColor?: string | null;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -23,7 +27,15 @@ export function TaskItem({
         onChange={(e) => startTransition(() => toggleTask(id, e.target.checked))}
         className="h-5 w-5 accent-slate-900"
       />
-      <span className={completed ? "text-slate-400 line-through" : ""}>{title}</span>
+      <span className={`flex-1 ${completed ? "text-slate-400 line-through" : ""}`}>{title}</span>
+      {categoryName && (
+        <span
+          className="rounded-full px-2 py-0.5 text-xs text-white"
+          style={{ backgroundColor: categoryColor ?? "#64748b" }}
+        >
+          {categoryName}
+        </span>
+      )}
     </label>
   );
 }
