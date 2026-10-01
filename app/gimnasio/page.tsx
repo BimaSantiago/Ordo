@@ -1,46 +1,63 @@
 import Link from "next/link";
-import { AppNav } from "@/components/app-nav";
+import { ChevronRight, Library, ListChecks, Play, TrendingUp, type LucideIcon } from "lucide-react";
+import { Page } from "@/components/ui/page";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
 
-const SECTIONS = [
+const SECTIONS: { href: string; title: string; description: string; icon: LucideIcon }[] = [
   {
-    href: "/gimnasio/entrenar",
-    title: "Entrenar",
-    description: "Inicia un entrenamiento vacío o desde una rutina.",
+    href: "/gimnasio/progreso",
+    title: "Progreso",
+    description: "Historial, récords, gráficas por ejercicio y resumen semanal.",
+    icon: TrendingUp,
   },
   {
     href: "/gimnasio/rutinas",
     title: "Rutinas",
     description: "Plantillas de ejercicios, series objetivo y rangos de reps.",
+    icon: ListChecks,
   },
   {
     href: "/gimnasio/ejercicios",
     title: "Ejercicios",
     description: "Biblioteca de ejercicios y tus ejercicios personalizados.",
+    icon: Library,
   },
 ];
 
 export default function GimnasioPage() {
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 p-4 pb-24">
-      <AppNav current="/gimnasio" />
+    <Page>
+      <PageHeader title="Gimnasio" subtitle="Registro de entrenamientos y progresión" />
 
-      <div>
-        <h1 className="text-xl font-semibold">Gimnasio</h1>
-        <p className="text-sm text-slate-500">Registro de entrenamientos y progresión.</p>
-      </div>
+      <Link
+        href="/gimnasio/entrenar"
+        className="pressable flex min-h-20 items-center gap-4 rounded-2xl bg-primary px-4 text-on-primary"
+      >
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-on-primary/15">
+          <Play size={24} fill="currentColor" aria-hidden />
+        </span>
+        <span className="flex-1">
+          <span className="block text-lg font-bold">Entrenar</span>
+          <span className="block text-sm opacity-85">Vacío o desde una rutina</span>
+        </span>
+        <ChevronRight size={22} aria-hidden />
+      </Link>
 
-      <section className="space-y-2">
-        {SECTIONS.map((section) => (
-          <Link
-            key={section.href}
-            href={section.href}
-            className="block rounded-lg border border-slate-200 px-3 py-3"
-          >
-            <p className="font-medium">{section.title}</p>
-            <p className="text-sm text-slate-500">{section.description}</p>
+      <Card className="divide-y divide-line">
+        {SECTIONS.map(({ href, title, description, icon: Icon }) => (
+          <Link key={href} href={href} className="pressable flex min-h-16 items-center gap-3 px-4 py-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+              <Icon size={20} aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">{title}</span>
+              <span className="block text-sm text-muted">{description}</span>
+            </span>
+            <ChevronRight size={20} className="text-muted" aria-hidden />
           </Link>
         ))}
-      </section>
-    </main>
+      </Card>
+    </Page>
   );
 }

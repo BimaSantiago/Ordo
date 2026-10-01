@@ -1,5 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { AppNav } from "@/components/app-nav";
+import { EXERCISE_INFO_COLUMNS, type ExerciseInfo } from "@/lib/exercises";
+import { Page } from "@/components/ui/page";
+import { PageHeader } from "@/components/ui/page-header";
 import { WorkoutSession } from "./workout-session";
 
 export default async function EntrenarPage() {
@@ -10,19 +12,18 @@ export default async function EntrenarPage() {
       .from("routines")
       .select("id, name, routine_exercises(exercise_id, target_sets, exercises(name))")
       .order("created_at", { ascending: true }),
-    supabase.from("exercises").select("id, name").order("name", { ascending: true }),
+    supabase.from("exercises").select(EXERCISE_INFO_COLUMNS).order("name", { ascending: true }).returns<ExerciseInfo[]>(),
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 p-4 pb-24">
-      <AppNav current="/gimnasio" />
-
-      <div>
-        <h1 className="text-xl font-semibold">Entrenar</h1>
-        <p className="text-sm text-slate-500">Tu sesión se guarda localmente aunque pierdas señal.</p>
-      </div>
-
+    <Page>
+      <PageHeader
+        title="Entrenar"
+        subtitle="Tu sesión se guarda en el teléfono aunque pierdas señal"
+        backHref="/gimnasio"
+        backLabel="Gimnasio"
+      />
       <WorkoutSession routines={routines ?? []} exercises={exercises ?? []} />
-    </main>
+    </Page>
   );
 }

@@ -26,27 +26,27 @@ export function RestTimer() {
   const isDone = remaining === 0;
 
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
-      <span className="text-sm text-slate-500">Descanso</span>
+    <div className="flex items-center gap-2 rounded-lg border border-line px-3 py-2">
+      <span className="text-sm text-muted">Descanso</span>
       {remaining === null ? (
         <>
           <input
             type="number"
             value={durationSeconds}
             onChange={(e) => setDurationSeconds(Number(e.target.value) || 0)}
-            className="w-16 rounded border border-slate-300 px-1 py-1 text-sm"
+            className="w-16 rounded border border-line px-1 py-1 text-sm"
           />
-          <span className="text-xs text-slate-400">seg</span>
-          <button type="button" onClick={start} className="ml-auto text-sm font-medium text-slate-900">
+          <span className="text-xs text-muted">seg</span>
+          <button type="button" onClick={start} className="ml-auto text-sm font-medium text-fg">
             Iniciar
           </button>
         </>
       ) : (
         <>
-          <span className={`ml-auto text-lg font-semibold ${isDone ? "text-emerald-600" : ""}`}>
+          <span className={`ml-auto text-lg font-semibold ${isDone ? "text-success" : ""}`}>
             {isDone ? "¡Listo!" : `${remaining}s`}
           </span>
-          <button type="button" onClick={stop} className="text-xs text-slate-500">
+          <button type="button" onClick={stop} className="text-xs text-muted">
             {isDone ? "Cerrar" : "Cancelar"}
           </button>
         </>

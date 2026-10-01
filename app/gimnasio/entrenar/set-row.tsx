@@ -1,13 +1,10 @@
 "use client";
 
-import type { DraftSet, SetType } from "@/lib/gimnasio/workout-draft";
+import { Check, X } from "lucide-react";
+import { SET_TYPE_LABELS, type DraftSet, type SetType } from "@/lib/gimnasio/workout-draft";
+import { cn } from "@/lib/cn";
 
-const SET_TYPE_LABELS: Record<SetType, string> = {
-  calentamiento: "Calentamiento",
-  normal: "Normal",
-  al_fallo: "Al fallo",
-  drop_set: "Drop set",
-};
+const INPUT = "min-h-11 rounded-lg border border-line bg-surface px-1.5 text-center tabular-nums outline-none focus:border-primary";
 
 export function SetRow({
   set,
@@ -20,14 +17,16 @@ export function SetRow({
 }) {
   return (
     <div
-      className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 ${
-        set.completed ? "border-emerald-300 bg-emerald-50" : "border-slate-200"
-      }`}
+      className={cn(
+        "flex items-center gap-1.5 rounded-xl border px-1.5 py-1",
+        set.completed ? "border-success/40 bg-success-soft" : "border-line bg-surface"
+      )}
     >
       <select
         value={set.setType}
         onChange={(e) => onChange({ ...set, setType: e.target.value as SetType })}
-        className="rounded border border-slate-300 bg-white px-1 py-1 text-xs"
+        aria-label="Tipo de serie"
+        className="min-h-11 w-14 shrink-0 rounded-lg border border-line bg-surface px-1 text-xs"
       >
         {Object.entries(SET_TYPE_LABELS).map(([value, label]) => (
           <option key={value} value={value}>
@@ -39,38 +38,48 @@ export function SetRow({
         type="number"
         inputMode="decimal"
         placeholder="kg"
+        aria-label="Peso en kg"
         value={set.weightKg ?? ""}
         onChange={(e) => onChange({ ...set, weightKg: e.target.value === "" ? null : Number(e.target.value) })}
-        className="w-16 rounded border border-slate-300 px-1.5 py-1 text-base"
+        className={cn(INPUT, "w-16")}
       />
       <input
         type="number"
         inputMode="numeric"
         placeholder="reps"
+        aria-label="Repeticiones"
         value={set.reps ?? ""}
         onChange={(e) => onChange({ ...set, reps: e.target.value === "" ? null : Number(e.target.value) })}
-        className="w-14 rounded border border-slate-300 px-1.5 py-1 text-base"
+        className={cn(INPUT, "w-14")}
       />
       <input
         type="number"
         inputMode="decimal"
         placeholder="RPE"
+        aria-label="RPE (opcional)"
         value={set.rpe ?? ""}
         onChange={(e) => onChange({ ...set, rpe: e.target.value === "" ? null : Number(e.target.value) })}
-        className="w-12 rounded border border-slate-300 px-1 py-1 text-xs"
+        className={cn(INPUT, "w-12")}
       />
       <button
         type="button"
         onClick={() => onChange({ ...set, completed: !set.completed })}
-        aria-label="Marcar serie completada"
-        className={`ml-auto h-9 w-9 shrink-0 rounded-full text-lg ${
-          set.completed ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400"
-        }`}
+        aria-pressed={set.completed}
+        aria-label={set.completed ? "Serie completada, desmarcar" : "Marcar serie completada"}
+        className={cn(
+          "pressable ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
+          set.completed ? "bg-success text-on-primary" : "bg-surface-2 text-muted"
+        )}
       >
-        ✓
+        <Check size={22} strokeWidth={3} aria-hidden />
       </button>
-      <button type="button" onClick={onRemove} className="text-xs text-red-400">
-        ✕
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Quitar serie"
+        className="pressable flex h-11 w-8 shrink-0 items-center justify-center text-muted"
+      >
+        <X size={18} aria-hidden />
       </button>
     </div>
   );

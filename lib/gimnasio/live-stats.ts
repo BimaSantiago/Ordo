@@ -1,3 +1,4 @@
+import { isWorkingSet } from "./records";
 import type { DraftExercise } from "./workout-draft";
 
 export function calculateElapsedSeconds(startedAt: string, now: Date = new Date()): number {
@@ -14,11 +15,11 @@ export function formatElapsed(totalSeconds: number): string {
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
 }
 
-/** Volumen = peso x repeticiones, sumado solo sobre series marcadas como completadas. */
+/** Volumen = peso x repeticiones de series completadas, sin calentamientos (igual que el historial). */
 export function calculateWorkoutVolume(exercises: DraftExercise[]): number {
   return exercises.reduce((total, exercise) => {
     const exerciseVolume = exercise.sets.reduce((sum, set) => {
-      if (!set.completed || set.weightKg == null || set.reps == null) return sum;
+      if (!isWorkingSet(set) || set.weightKg == null || set.reps == null) return sum;
       return sum + set.weightKg * set.reps;
     }, 0);
     return total + exerciseVolume;

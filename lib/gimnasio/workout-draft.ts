@@ -1,6 +1,14 @@
 import Dexie, { type Table } from "dexie";
+import { createId } from "../uuid";
 
 export type SetType = "calentamiento" | "normal" | "al_fallo" | "drop_set";
+
+export const SET_TYPE_LABELS: Record<SetType, string> = {
+  calentamiento: "Calentamiento",
+  normal: "Normal",
+  al_fallo: "Al fallo",
+  drop_set: "Drop set",
+};
 
 export type DraftSet = {
   id: string;
@@ -22,7 +30,10 @@ export type DraftExercise = {
 };
 
 export type WorkoutDraft = {
+  /** Llave fija en Dexie (siempre "active"); no es el id del entrenamiento. */
   id: string;
+  /** UUID con el que se guarda en `workouts.id`; estable entre recargas para que reintentar sea idempotente. */
+  workoutId: string;
   routineId: string | null;
   name: string | null;
   notes: string | null;
@@ -52,7 +63,10 @@ function getDb(): WorkoutDraftDatabase {
 }
 
 export async function getActiveDraft(): Promise<WorkoutDraft | undefined> {
-  return getDb().drafts.get(ACTIVE_DRAFT_ID);
+  const draft = await getDb().drafts.get(ACTIVE_DRAFT_ID);
+  // Borradores creados antes de que existiera `workoutId`.
+  if (draft && !draft.workoutId) return { ...draft, workoutId: createId() };
+  return draft;
 }
 
 export async function saveActiveDraft(draft: WorkoutDraft): Promise<void> {
@@ -70,6 +84,7 @@ export function createDraft(options: {
 }): WorkoutDraft {
   return {
     id: ACTIVE_DRAFT_ID,
+    workoutId: createId(),
     routineId: options.routineId ?? null,
     name: options.name ?? null,
     notes: null,
@@ -80,7 +95,7 @@ export function createDraft(options: {
 
 export function createDraftSet(position: number, setType: SetType = "normal"): DraftSet {
   return {
-    id: crypto.randomUUID(),
+    id: createId(),
     position,
     setType,
     weightKg: null,
@@ -96,7 +111,7 @@ export function createDraftExercise(
   position: number
 ): DraftExercise {
   return {
-    id: crypto.randomUUID(),
+    id: createId(),
     exerciseId,
     exerciseName,
     position,

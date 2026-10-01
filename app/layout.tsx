@@ -1,15 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { QuickAddProvider } from "@/components/quick-add/quick-add-provider";
+import { BottomNav } from "@/components/bottom-nav";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
 });
 
@@ -27,18 +24,24 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0f172a",
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
+  // Igual al fondo de la parte superior de la app en cada esquema (barra de estado sin corte).
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f4f8f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1214" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="es-MX"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
+    <html lang="es-MX" className={`${jakarta.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col font-sans">
         <ServiceWorkerRegistration />
-        {children}
+        <QuickAddProvider>
+          {children}
+          <BottomNav />
+        </QuickAddProvider>
       </body>
     </html>
   );

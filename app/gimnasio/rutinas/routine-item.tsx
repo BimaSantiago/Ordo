@@ -8,7 +8,7 @@ export function RoutineItem({ id, name }: { id: string; name: string }) {
   const [isPending, startTransition] = useTransition();
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2.5">
+    <div className="flex items-center gap-3 rounded-lg border border-line px-3 py-2.5">
       <Link href={`/gimnasio/rutinas/${id}`} className="flex-1">
         {name}
       </Link>
@@ -16,7 +16,7 @@ export function RoutineItem({ id, name }: { id: string; name: string }) {
         type="button"
         disabled={isPending}
         onClick={() => startTransition(() => deleteRoutine(id))}
-        className="text-xs text-red-500"
+        className="text-xs text-danger"
       >
         Eliminar
       </button>

@@ -6,6 +6,7 @@ import {
   createDraftSet,
   getActiveDraft,
   saveActiveDraft,
+  type WorkoutDraft,
 } from "./workout-draft";
 
 describe("workout-draft", () => {
@@ -53,6 +54,21 @@ describe("workout-draft", () => {
       reps: 5,
       completed: true,
     });
+  });
+
+  it("conserva el workoutId (UUID) entre guardados para que reintentar finalizar no duplique", async () => {
+    const draft = createDraft({});
+    await saveActiveDraft(draft);
+    const recovered = await getActiveDraft();
+    expect(recovered?.workoutId).toBe(draft.workoutId);
+    expect(recovered?.workoutId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("asigna workoutId a borradores guardados antes de que existiera el campo", async () => {
+    const legacy: Partial<WorkoutDraft> = createDraft({});
+    delete legacy.workoutId;
+    await saveActiveDraft(legacy as WorkoutDraft);
+    expect((await getActiveDraft())?.workoutId).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it("limpia el draft al finalizar el entrenamiento", async () => {

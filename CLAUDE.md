@@ -179,7 +179,7 @@ npx tsc --noEmit  # chequeo de tipos, sin emitir archivos
 npm run test      # Vitest (modo run, sin watch)
 ```
 
-Vitest cubre la lógica delicada: guardado/recuperación del entrenamiento en curso (`lib/gimnasio/workout-draft.test.ts`, usando `fake-indexeddb` para simular IndexedDB en Node vía `vitest.setup.mts`) y los cálculos en vivo de duración/volumen (`lib/gimnasio/live-stats.test.ts`). El config vive en `vitest.config.mts` (extensión `.mts`, no `.ts`, para que Vite no advierta por sintaxis ESM en un archivo cargado como CommonJS).
+Vitest cubre la lógica delicada: guardado/recuperación del entrenamiento en curso (`lib/gimnasio/workout-draft.test.ts`, usando `fake-indexeddb` para simular IndexedDB en Node vía `vitest.setup.mts`), los cálculos en vivo de duración/volumen (`lib/gimnasio/live-stats.test.ts`), 1RM y récords (`lib/gimnasio/records.test.ts`), agregaciones de progreso (`lib/gimnasio/progress.test.ts`) y fechas locales/semana (`lib/date.test.ts`). El config vive en `vitest.config.mts` (extensión `.mts`, no `.ts`, para que Vite no advierta por sintaxis ESM en un archivo cargado como CommonJS).
 
 ### Convención de rutas (Next.js 16)
 
@@ -192,29 +192,65 @@ Este proyecto usa **Next.js 16**, que reemplazó la convención `middleware.ts` 
 - `lib/supabase/client.ts`: cliente de Supabase para Client Components.
 - Toda lectura/escritura a la base de datos depende de RLS (`auth.uid() = user_id`) definida en las migraciones — no hay una capa de autorización aparte en la app.
 
+### Sistema visual y navegación
+
+- **Tokens de color** en `app/globals.css` (claro y oscuro con `prefers-color-scheme`), expuestos a Tailwind con `@theme inline`: `canvas`, `surface`, `surface-2`, `fg`, `muted`, `line`, `primary` (teal), `primary-soft`, `on-primary`, `accent` (naranja, solo para el "+"), `danger`, `success`. **No uses `slate-*`, `white` ni hex en componentes**: usa `bg-surface text-fg border-line`, etc. Las excepciones son los colores de las materias (vienen de la base) y el texto blanco sobre ellos.
+- Fuente Plus Jakarta Sans (`next/font`, variable `--font-jakarta`). Iconos de `lucide-react` (SVG, sin emojis); los botones que solo tienen icono llevan `aria-label`.
+- Base móvil en `globals.css`: sin destello al tocar, `overscroll-behavior: none`, inputs de 16px (evita el zoom de iOS), clase `.pressable` para dar respuesta al presionar. `viewport` con `viewportFit: "cover"` y `themeColor` por esquema; las barras fijas usan `env(safe-area-inset-*)`.
+- Primitivas en `components/ui/`: `Page` (contenedor con espacio para la barra inferior; `wide` para la tabla semanal), `PageHeader` (título y enlace de regreso), `Card`/`SectionTitle`, `Button`, `IconButton`, `Chip` y `Sheet` (panel inferior sobre `<dialog>` nativo, con foco atrapado y cierre con Esc/atrás).
+- `components/bottom-nav.tsx`: barra inferior (Hoy, Semana, **+**, Gimnasio, Más), montada una vez en `app/layout.tsx` y oculta en `/login` y `/offline`. `/mas` agrupa Materias, Recordatorios y Cerrar sesión (`signOut` vive en `app/mas/actions.ts`).
+- **Panel rápido** (`components/quick-add/`): `QuickAddProvider` en el layout expone `useQuickAdd().open(prefill)` y `showToast`. Pestañas: Tarea, Actividad, Hábito, Peso y Nota. `prefill` permite abrirlo con día, hora, materia o una tarea existente (`task`, para editarla o eliminarla). Desde Server Components se abre con `QuickAddButton`.
+
 ### Módulo "Hoy" (`app/hoy/`)
 
 Patrón a seguir para las demás pantallas:
-- `page.tsx` es un Server Component: lee todo con el cliente de servidor de Supabase (tareas y hábitos del día, log de hábito del día, peso del día vía `local_date` calculado con `lib/date.ts`) y renderiza.
-- `actions.ts` son Server Actions (`"use server"`) que hacen la escritura (crear tarea/hábito, marcar hábito/tarea, guardar peso, nota rápida, cerrar sesión) y llaman `revalidatePath("/hoy")`.
-- Los ids se generan en el servidor con `crypto.randomUUID()` en las Server Actions; cuando se implemente la sincronización offline (IndexedDB), los ids deberán generarse en el cliente para poder crear registros sin conexión, como indica la sección 6.
-- Piezas interactivas mínimas (`task-item.tsx`, `habit-item.tsx`) son Client Components con `useTransition` que llaman a las Server Actions directamente — no hay una capa de estado global ni store del cliente.
+- `page.tsx` es un Server Component: lee todo con el cliente de servidor de Supabase (tareas, bloques y hábitos del día, peso vía `local_date` calculado con `lib/date.ts`) y renderiza. Muestra resumen, "Tu día" (bloques y actividades por hora), tareas y hábitos. Ya no tiene formularios: todo se captura con el "+".
+- Las Server Actions regresan `{ ok: true } | { ok: false, error }` (`ActionResult`) para que el panel muestre errores. Las tareas viven en `app/tareas/actions.ts` (`saveTask` crea o actualiza con un **id generado en el cliente**, `toggleTask`, `deleteTask`, que revalidan `/hoy` y `/horario`). Hábito, peso y nota están en `app/hoy/actions.ts`.
+- Las piezas interactivas (`components/task-row.tsx`, `app/hoy/habit-item.tsx`) usan `useOptimistic` y `useTransition` y llaman a las Server Actions directamente; no hay store global.
 
-### Módulos "Materias" (`app/materias/`) y "Horario" (`app/horario/`)
+### Módulos "Materias" (`app/materias/`) y "Semana" (`app/horario/`)
 
-Mismo patrón que "Hoy": `page.tsx` Server Component + `actions.ts` con Server Actions que revalidan `/materias`, `/horario` y `/hoy` a la vez (comparten datos: una categoría archivada o un bloque nuevo deben reflejarse también en "Hoy"). `category-item.tsx` y `block-item.tsx` son los Client Components mínimos con `useTransition`, igual que `task-item.tsx`/`habit-item.tsx`.
+**Actividad = tarea con hora** (`tasks.start_time`/`end_time`, migración 0005). No hay una tabla aparte.
 
-`schedule_blocks.day_of_week` (0=domingo..6=sábado) se resuelve para "hoy" con `getLocalDayOfWeek()` en `lib/date.ts` — es aritmética de calendario, no depende de zona horaria del servidor. `AppNav` (`components/app-nav.tsx`) es la barra compartida (Hoy/Horario/Materias + Salir) que reemplaza el header suelto que tenía `app/hoy/page.tsx`; `signOut` sigue viviendo en `app/hoy/actions.ts` y se importa desde ahí.
+`app/horario/` es la **tabla semanal editable** (lunes a domingo, `?semana=YYYY-MM-DD`):
+- Lógica pura en `lib/schedule/week-grid.ts` (`buildWeekGrid`, probada en `week-grid.test.ts`): bloques recurrentes y actividades se posicionan por minutos y se reparten en carriles si se enciman (`assignLanes`). Una tarea **sin hora con materia se adjunta al bloque de esa materia ese día** (contador en el bloque); si no hay bloque, va a la fila "Pendientes". El rango de horas es de 7 a 22 por defecto y se amplía si algo cae fuera.
+- `week-grid-view.tsx` (Client):
+  - Tocar un espacio vacío da a elegir entre "Clase o actividad fija" (bloque, abre `block-editor-sheet.tsx`) y "Actividad solo este día" (abre el panel rápido con fecha y hora).
+  - Tocar un bloque lo edita o elimina; tocar una actividad abre el panel para editarla.
+  - Tocar el encabezado de un día abre todo lo de ese día.
+- `saveBlock(input)` en `app/horario/actions.ts` crea o actualiza con el id del cliente.
+
+En Materias, `category-item.tsx` edita en un `Sheet` (nombre, tipo, color de `lib/schedule/colors.ts`, archivar, eliminar). `createCategoryQuick` permite crear una materia en línea desde `components/category-picker.tsx` (panel rápido y editor de bloques) y la deja seleccionada.
+
+**Recordatorios:** `tasks.remind_at` se calcula en el cliente con `computeRemindAt` (`lib/reminders.ts`, en America/Mexico_City vía `localDateTimeToUtcIso`). La entrega por Web Push (suscripciones, Edge Function con cron y columna `reminded_at`) está pendiente.
+
+`schedule_blocks.day_of_week` (0=domingo..6=sábado) se resuelve con `getLocalDayOfWeek()` en `lib/date.ts`; es aritmética de calendario y no depende de la zona horaria del servidor.
 
 ### Módulo "Gimnasio" (`app/gimnasio/`)
 
-Hub en `/gimnasio` con enlaces a `/gimnasio/ejercicios`, `/gimnasio/rutinas` y `/gimnasio/entrenar` (progreso/récords quedan para cuando se implemente esa parte del hito 1B). Ejercicios y rutinas siguen el patrón `page.tsx`/`actions.ts` ya establecido. `entrenar/` es distinto porque su estado vive primero en el navegador:
+Hub en `/gimnasio` con enlaces a `/gimnasio/entrenar`, `/gimnasio/progreso`, `/gimnasio/rutinas` y `/gimnasio/ejercicios`. Ejercicios, rutinas y progreso siguen el patrón `page.tsx`/`actions.ts` ya establecido. `entrenar/` es distinto porque su estado vive primero en el navegador:
 
-- `lib/gimnasio/workout-draft.ts`: Dexie (`life-os-gimnasio`, tabla `drafts`) guarda el **entrenamiento en curso** bajo un id fijo (`"active"`, solo puede haber uno). `workout-session.tsx` (Client Component) lee/escribe ahí en cada cambio — así la sesión sobrevive a cierres de la app, recargas y pérdida de señal sin depender de Supabase mientras se entrena.
+- `lib/gimnasio/workout-draft.ts`: Dexie (`life-os-gimnasio`, tabla `drafts`) guarda el **entrenamiento en curso** bajo una llave fija (`draft.id = "active"`, solo puede haber uno). Esa llave **no** es el id del entrenamiento: `draft.workoutId` es el UUID que se guarda en `workouts.id`, estable entre recargas para que reintentar `finishWorkout` sea idempotente. `workout-session.tsx` (Client Component) lee/escribe ahí en cada cambio — así la sesión sobrevive a cierres de la app, recargas y pérdida de señal sin depender de Supabase mientras se entrena.
 - `lib/gimnasio/live-stats.ts`: cálculos puros (duración transcurrida, volumen, series completadas) sobre el draft, cubiertos por Vitest.
-- `app/gimnasio/entrenar/actions.ts`: `getPreviousExerciseSets` (referencia de la sesión anterior por ejercicio) y `finishWorkout` (vuelca el draft completo a `workouts`/`workout_exercises`/`workout_sets` vía `upsert` y limpia Dexie). Solo se toca Supabase al agregar ejercicios, consultar referencia o finalizar — nunca en cada tecla.
+- `app/gimnasio/entrenar/actions.ts`: `getPreviousExerciseSets` (referencia de la sesión anterior por ejercicio) y `finishWorkout` (vuelca el draft a `workouts`/`workout_exercises`/`workout_sets` con upserts en lote, detecta e inserta récords en `personal_records` y regresa `{ ok, newRecords }` o `{ ok: false, error }`). El cliente **solo borra Dexie si `ok`**; si falla, el entrenamiento sigue en pantalla para reintentar. Solo se toca Supabase al agregar ejercicios, consultar referencia o finalizar — nunca en cada tecla.
+- `lib/gimnasio/records.ts`: 1RM con Epley, valores de récord por serie y `detectNewRecords` (solo superar cuenta; un empate no). Las series de **calentamiento no cuentan** para récords ni volumen (tampoco en el volumen en vivo); al fallo y drop set sí. Los récords se calculan solo al finalizar un entrenamiento.
+- `lib/gimnasio/progress.ts`: agregaciones puras (resumen de entrenamiento, resumen semanal con volumen por grupo muscular, un punto por sesión para las gráficas por ejercicio). `lib/gimnasio/workout-rows.ts` tiene el select anidado de PostgREST y lo mapea a tipos (`numeric` puede llegar como string).
+- `app/gimnasio/progreso/`: resumen de la semana (lunes a domingo, `getLocalWeekStart` en `lib/date.ts`), historial, detalle por entrenamiento (`[workoutId]`) y vista por ejercicio (`ejercicio/[exerciseId]`) con récords y gráfica. La gráfica es `components/progress-chart.tsx` (Client Component con Recharts) e incluye la línea de peso corporal de `body_weight_logs` en el mismo eje de tiempo.
+- **Imágenes y mapa muscular** (`components/exercise/`):
+  - `exercise-thumb.tsx`: miniatura fija para listas.
+  - `exercise-animation.tsx`: foto inicial y final alternando como GIF con la animación CSS `.exercise-anim` de `globals.css`; tocar pausa.
+  - `muscle-map.tsx`: silueta de frente y espalda con `react-muscle-highlighter`; principal en `--accent`, secundarios en `--primary`, con leyenda en texto.
+  - `exercise-detail-sheet.tsx`: junta todo. Carga el mapa con `next/dynamic` porque sus trazos SVG pesan unos 50 KB.
+  - Las fotos vienen de free-exercise-db vía jsDelivr, **fijadas a un commit**. La constante está en `lib/exercises.ts` (`exerciseImageUrl`) y debe coincidir con `DATASET_COMMIT` de `scripts/generate-exercise-images-migration.mjs`, que genera la migración 0006.
+  - `public/sw.js` las guarda en el caché `life-os-img-v1` (cache-first) para verlas sin señal.
+  - Las consultas que muestran ejercicios usan `EXERCISE_INFO_COLUMNS` y el tipo `ExerciseInfo`.
 - `lib/exercises.ts`: traduce a español grupo muscular/equipo de los ejercicios sembrados desde free-exercise-db (que quedan en inglés en la base, ver `supabase/migrations/00000000000004_seed_exercises.sql`) sin bifurcar la fuente de datos.
 - Notificaciones del temporizador de descanso (`rest-timer.tsx`) son in-app únicamente (cuenta regresiva visible), como indica la sección 7 hasta que se implementen push notifications.
+
+### Ids en el cliente y pruebas desde el celular
+
+- Usa siempre `createId()` de `lib/uuid.ts` en código que corre en el navegador, **nunca `crypto.randomUUID()`**. `randomUUID` solo existe en contextos seguros (HTTPS o localhost). Al abrir la app desde el celular por `http://<IP-de-la-PC>:3000` no existe, y guardar un bloque, una tarea o una serie fallaba. En las Server Actions (Node) sí se puede usar `randomUUID` de `crypto`.
+- `next.config.ts` → `allowedDevOrigins` incluye la IP local de la PC. Next 16 bloquea los recursos de desarrollo pedidos desde otros hosts y la página carga pero **no se hidrata**: ningún botón responde. Si la IP cambia, hay que actualizarla.
 
 ### `lib/date.ts`
 
@@ -227,6 +263,8 @@ Migraciones SQL planas (sin CLI de Supabase todavía integrada al flujo). Cada t
 - `00000000000001_core.sql`: tablas del hito 1A (`projects`, `habits`, `habit_logs`, `tasks`, `ideas`, `notes`, `body_weight_logs`, `body_measurements`).
 - `00000000000002_gimnasio.sql`: esquema completo del hito 1B (`exercises`, `routines`, `routine_exercises`, `workouts`, `workout_exercises`, `workout_sets`, `personal_records`), creado por adelantado pero sin UI todavía.
 - `00000000000003_horario.sql`: hito 1C (`schedule_categories`, `schedule_blocks`) y columna `tasks.category_id`.
+- `00000000000006_exercise_images.sql`: `exercises.source_id` e `image_paths` (rutas relativas de las fotos). Es **generada** por `scripts/generate-exercise-images-migration.mjs`: no se edita a mano.
+- `00000000000005_tareas_con_hora.sql`: `tasks.start_time`, `end_time` y `remind_at`, más índices por `due_date` y `remind_at`.
 - `00000000000004_seed_exercises.sql`: siembra 876 ejercicios de free-exercise-db en `exercises` con `user_id null` (biblioteca global). Nombres y grupos musculares en inglés tal cual el dataset; ver `lib/exercises.ts` para la traducción en la capa de presentación.
 
 Al aplicar migraciones nuevas, sigue la convención de nombre `NNNNNNNNNNNNNN_descripcion.sql` (timestamp o número secuencial) para que se ejecuten en orden.
