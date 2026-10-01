@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { ActionResult } from "@/app/tareas/actions";
 
 async function requireUserId() {
   const supabase = await createSupabaseServerClient();
@@ -44,21 +45,25 @@ export async function listActiveCategories(): Promise<QuickCategory[]> {
   return data ?? [];
 }
 
-/** Crea una materia desde el panel rápido o la tabla y la regresa para seleccionarla al momento. */
-export async function createCategoryQuick(name: string, color: string): Promise<QuickCategory | null> {
-  const trimmed = name.trim();
-  if (!trimmed) return null;
-  const safeColor = /^#[0-9a-fA-F]{6}$/.test(color) ? color : "#64748b";
+/**
+ * Crea una materia desde el panel rápido o la tabla. El id viene del cliente para poder
+ * seleccionarla al momento y reintentarla desde la cola sin conexión sin duplicarla.
+ */
+export async function createCategoryQuick(category: QuickCategory): Promise<ActionResult> {
+  const name = category.name.trim();
+  if (!name) return { ok: false, error: "Escribe un nombre." };
+  const color = /^#[0-9a-fA-F]{6}$/.test(category.color) ? category.color : "#64748b";
 
   const { supabase, userId } = await requireUserId();
-  const category = { id: randomUUID(), name: trimmed, color: safeColor };
-  const { error } = await supabase.from("schedule_categories").insert({ ...category, user_id: userId });
-  if (error) return null;
+  const { error } = await supabase
+    .from("schedule_categories")
+    .upsert({ id: category.id, name, color, user_id: userId });
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath("/materias");
   revalidatePath("/horario");
   revalidatePath("/hoy");
-  return category;
+  return { ok: true };
 }
 
 export async function updateCategory(categoryId: string, input: { name: string; color: string; type: string }) {

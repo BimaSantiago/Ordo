@@ -272,9 +272,32 @@ Al aplicar migraciones nuevas, sigue la convención de nombre `NNNNNNNNNNNNNN_de
 ### PWA
 
 - `public/manifest.json` + `public/icons/` (iconos placeholder generados a mano, sin diseño final — pendiente la sección 9 "decidir nombre y diseño visual de la app").
-- `public/sw.js`: service worker manual (sin Workbox ni `next-pwa`): cachea assets estáticos con estrategia cache-first y muestra `/offline` cuando falla una navegación sin red. Se decidió no usar `next-pwa` porque está sin mantenimiento (última versión ~2022) y su cadena de dependencias (workbox-build/rollup-plugin-terser) tiene vulnerabilidades altas reportadas por `npm audit`.
-- `components/service-worker-registration.tsx`: Client Component sin UI que registra `/sw.js` en `useEffect`; se monta desde `app/layout.tsx`.
-- Aún no hay sincronización real de IndexedDB/Dexie para escritura offline — el service worker solo cachea lecturas y la página offline. Esto sigue pendiente para cumplir el requisito de "modo sin conexión básico" del hito 1A.
+- `public/sw.js`: service worker manual, sin Workbox ni `next-pwa`. Se descartó `next-pwa` porque no tiene mantenimiento y su cadena de dependencias tiene vulnerabilidades altas en `npm audit`.
+  - Assets: cache-first en producción. En desarrollo se registra como `/sw.js?dev=1` y va primero a la red para no servir código viejo de Turbopack.
+  - Pantallas: red primero, con respaldo de la última copia (`life-os-pages-v1`) o `/offline`. Las peticiones RSC de Next no se cachean; si fallan, Next recarga la página completa y esa recarga sale del caché.
+  - Fotos de ejercicios: cache-first.
+  - "Cerrar sesión" (`app/mas/sign-out-button.tsx`) borra las pantallas guardadas, porque tienen datos personales.
+  - El SW **solo funciona en contextos seguros**: con `http://IP-local` no se registra. La lectura sin conexión se prueba en `localhost` o en el despliegue con HTTPS.
+- `components/service-worker-registration.tsx`: registra el SW. También exporta `clearCachedPages()`.
+
+### Modo sin conexión (escrituras)
+
+- **Toda escritura que deba funcionar sin señal pasa por `runOrQueue(kind, payload, label)`** (`components/offline/run-or-queue.ts`):
+  - si no hay señal o la red falla, la guarda en la cola de Dexie `life-os-outbox` (`lib/offline/outbox.ts`, con pruebas);
+  - un rechazo del servidor (`{ ok: false }`) se regresa como error y no se encola.
+- Para agregar una acción nueva hay que **registrarla en `EXECUTORS`**.
+- La acción debe ser **idempotente**:
+  - id generado con `createId()` y `upsert`;
+  - fecha local mandada por el cliente al momento de tocar (`setHabitLog`, `saveWeight`), no calculada en el servidor;
+  - valores absolutos, no incrementos.
+  - Regresa `ActionResult`.
+- `SyncProvider` (`components/offline/sync-provider.tsx`) reproduce la cola en orden (FIFO):
+  - cuándo: al abrir la app, al recuperar señal, al volver a la pestaña y cada 30 s;
+  - un error de red detiene la cola; un rechazo del servidor descarta solo ese elemento y lo muestra;
+  - después de sincronizar hace `router.refresh()`.
+- `ConnectionStatus` es el aviso de arriba ("Sin conexión · N cambios pendientes", "Sincronizando…").
+- En la interfaz usa `useLocalOverride` (`components/offline/use-local-override.ts`) en lugar de `useOptimistic`. `useOptimistic` se revierte al terminar la acción y desharía un cambio que quedó en la cola.
+- `finishWorkout` sin señal también va a la cola. Los récords se calculan cuando se sube.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

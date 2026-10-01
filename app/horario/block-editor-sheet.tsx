@@ -10,7 +10,7 @@ import type { QuickCategory } from "@/app/materias/actions";
 import { minutesToTime, timeToMinutes, WEEKDAY_LABELS } from "@/lib/date";
 import { cn } from "@/lib/cn";
 import { createId } from "@/lib/uuid";
-import { deleteBlock, saveBlock } from "./actions";
+import { runOrQueue } from "@/components/offline/run-or-queue";
 
 export type BlockDraft = {
   id: string | null;
@@ -80,15 +80,12 @@ function BlockForm({
     if (!categoryId) return setError("Elige o crea una materia/actividad.");
     setError(null);
     startTransition(async () => {
-      const result = await saveBlock({
-        id: draft.id ?? createId(),
-        categoryId,
-        dayOfWeek,
-        startTime,
-        endTime,
-        notes,
-      });
-      if (!result.ok) return setError(result.error);
+      const run = await runOrQueue(
+        "saveBlock",
+        { id: draft.id ?? createId(), categoryId, dayOfWeek, startTime, endTime, notes },
+        `Bloque del ${WEEKDAY_LABELS[dayOfWeek].toLowerCase()} ${startTime}`
+      );
+      if (run.status === "error") return setError(run.error);
       onClose();
     });
   }
@@ -97,8 +94,8 @@ function BlockForm({
     if (!draft.id) return;
     if (!confirmDelete) return setConfirmDelete(true);
     startTransition(async () => {
-      const result = await deleteBlock(draft.id!);
-      if (!result.ok) return setError(result.error);
+      const run = await runOrQueue("deleteBlock", { blockId: draft.id! }, "Eliminar bloque");
+      if (run.status === "error") return setError(run.error);
       onClose();
     });
   }

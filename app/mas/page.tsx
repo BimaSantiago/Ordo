@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Bell, ChevronRight, LogOut, Tags, type LucideIcon } from "lucide-react";
+import { Bell, ChevronRight, Tags, type LucideIcon } from "lucide-react";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
-import { signOut } from "./actions";
+import { SignOutButton } from "./sign-out-button";
 
 const LINKS: { href: string; label: string; description: string; icon: LucideIcon }[] = [
   {
@@ -45,15 +45,7 @@ export default function MasPage() {
         </div>
       </Card>
 
-      <form action={signOut}>
-        <button
-          type="submit"
-          className="pressable flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-line bg-surface font-semibold text-danger"
-        >
-          <LogOut size={18} aria-hidden />
-          Cerrar sesión
-        </button>
-      </form>
+      <SignOutButton />
     </Page>
   );
 }

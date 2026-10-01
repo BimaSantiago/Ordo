@@ -3,9 +3,11 @@
 import { useState, useTransition } from "react";
 import { Check, Plus } from "lucide-react";
 import { Chip } from "@/components/ui/chip";
-import { createCategoryQuick, type QuickCategory } from "@/app/materias/actions";
+import type { QuickCategory } from "@/app/materias/actions";
+import { runOrQueue } from "@/components/offline/run-or-queue";
 import { CATEGORY_COLORS } from "@/lib/schedule/colors";
 import { cn } from "@/lib/cn";
+import { createId } from "@/lib/uuid";
 
 /**
  * Chips de materias con opción "+ Nueva" en línea: se crea y queda seleccionada sin salir
@@ -29,12 +31,17 @@ export function CategoryPicker({
   const [name, setName] = useState("");
   const [color, setColor] = useState<string>(CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length]);
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   function create() {
     if (!name.trim()) return;
+    setError(null);
+    // El id es del cliente: la materia se puede usar al instante, incluso sin señal (la cola la
+    // sube antes que cualquier tarea o bloque que la use, porque respeta el orden).
+    const category = { id: createId(), name: name.trim(), color };
     startTransition(async () => {
-      const category = await createCategoryQuick(name, color);
-      if (!category) return;
+      const run = await runOrQueue("createCategoryQuick", category, `Materia "${category.name}"`);
+      if (run.status === "error") return setError(run.error);
       onCreated(category);
       onChange(category.id);
       setName("");
@@ -112,6 +119,11 @@ export function CategoryPicker({
               </button>
             ))}
           </div>
+          {error && (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          )}
         </div>
       )}
     </div>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useOptimistic, useTransition } from "react";
 import { Bell, Check, Clock, Pencil } from "lucide-react";
-import { toggleTask } from "@/app/tareas/actions";
 import { useQuickAdd, type EditableTask } from "@/components/quick-add/quick-add-provider";
+import { runOrQueue } from "@/components/offline/run-or-queue";
+import { useLocalOverride } from "@/components/offline/use-local-override";
 import { cn } from "@/lib/cn";
 
 export type TaskRowData = EditableTask & {
@@ -15,36 +15,40 @@ export type TaskRowData = EditableTask & {
 /** Tarea con casilla grande (44px) para completarla de un toque y botón para editarla en el panel. */
 export function TaskRow({ task, showCategory = true }: { task: TaskRowData; showCategory?: boolean }) {
   const { open } = useQuickAdd();
-  const [, startTransition] = useTransition();
-  const [completed, setOptimisticCompleted] = useOptimistic(task.completed);
+  const completed = useLocalOverride(task.completed);
 
   return (
     <div className="flex items-center gap-1 rounded-2xl border border-line bg-surface pr-1">
       <button
         type="button"
         role="checkbox"
-        aria-checked={completed}
-        aria-label={completed ? `Marcar "${task.title}" como pendiente` : `Completar "${task.title}"`}
-        onClick={() =>
-          startTransition(async () => {
-            setOptimisticCompleted(!completed);
-            await toggleTask(task.id, !completed);
-          })
-        }
+        aria-checked={completed.value}
+        aria-label={completed.value ? `Marcar "${task.title}" como pendiente` : `Completar "${task.title}"`}
+        onClick={() => {
+          const next = !completed.value;
+          completed.set(next);
+          void runOrQueue(
+            "toggleTask",
+            { taskId: task.id, completed: next },
+            `${next ? "Completar" : "Reabrir"} "${task.title}"`
+          ).then((run) => {
+            if (run.status === "error") completed.set(!next);
+          });
+        }}
         className="pressable flex h-12 w-12 shrink-0 items-center justify-center"
       >
         <span
           className={cn(
             "flex h-6 w-6 items-center justify-center rounded-lg border-2 transition-colors",
-            completed ? "border-success bg-success text-surface" : "border-line"
+            completed.value ? "border-success bg-success text-surface" : "border-line"
           )}
         >
-          {completed && <Check size={16} strokeWidth={3} aria-hidden />}
+          {completed.value && <Check size={16} strokeWidth={3} aria-hidden />}
         </span>
       </button>
 
       <div className="min-w-0 flex-1 py-2">
-        <p className={cn("truncate font-medium", completed && "text-muted line-through")}>{task.title}</p>
+        <p className={cn("truncate font-medium", completed.value && "text-muted line-through")}>{task.title}</p>
         {(task.startTime || (showCategory && task.categoryName) || task.remindAt) && (
           <p className="flex items-center gap-2 text-xs text-muted">
             {task.startTime && (

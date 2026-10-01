@@ -18,7 +18,8 @@ import {
 } from "@/lib/gimnasio/workout-draft";
 import { calculateElapsedSeconds, calculateWorkoutVolume, countCompletedSets, formatElapsed } from "@/lib/gimnasio/live-stats";
 import { formatRecordValue, RECORD_LABELS } from "@/lib/gimnasio/records";
-import { finishWorkout, getPreviousExerciseSets, type BrokenRecord, type PreviousSet } from "./actions";
+import { getPreviousExerciseSets, type BrokenRecord, type PreviousSet } from "./actions";
+import { runOrQueue } from "@/components/offline/run-or-queue";
 import { RestTimer } from "./rest-timer";
 import { SetRow } from "./set-row";
 
@@ -60,6 +61,7 @@ export function WorkoutSession({
   const [finishError, setFinishError] = useState<string | null>(null);
   const [brokenRecords, setBrokenRecords] = useState<BrokenRecord[] | null>(null);
   const [detail, setDetail] = useState<ExerciseInfo | null>(null);
+  const [savedOffline, setSavedOffline] = useState(false);
   const exerciseById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
 
   useEffect(() => {
@@ -82,9 +84,12 @@ export function WorkoutSession({
     if (!draft) return;
     draft.exercises.forEach((exercise) => {
       if (previousByExercise[exercise.exerciseId] !== undefined) return;
-      getPreviousExerciseSets(exercise.exerciseId).then((sets) => {
-        setPreviousByExercise((prev) => ({ ...prev, [exercise.exerciseId]: sets }));
-      });
+      getPreviousExerciseSets(exercise.exerciseId)
+        .then((sets) => {
+          setPreviousByExercise((prev) => ({ ...prev, [exercise.exerciseId]: sets }));
+        })
+        // Sin señal no hay referencia; se vuelve a pedir en el siguiente cambio con conexión.
+        .catch(() => undefined);
     });
   }, [draft, previousByExercise]);
 
@@ -106,7 +111,9 @@ export function WorkoutSession({
     return (
       <div className="space-y-4">
         <p className="rounded-lg bg-success-soft px-3 py-2 text-sm font-medium text-success">
-          Entrenamiento guardado
+          {savedOffline
+            ? "Entrenamiento guardado en el teléfono. Se subirá solo cuando haya señal (los récords se calculan al subirlo)."
+            : "Entrenamiento guardado"}
         </p>
         {brokenRecords.length > 0 && (
           <ul className="space-y-1.5 rounded-lg border border-accent/40 bg-accent/10 p-3">
@@ -208,17 +215,17 @@ export function WorkoutSession({
     setIsFinishing(true);
     setFinishError(null);
     try {
-      const result = await finishWorkout(draft);
-      if (!result.ok) {
+      const run = await runOrQueue("finishWorkout", draft, `Entrenamiento ${draft.name ?? ""}`.trim());
+      if (run.status === "error") {
         setFinishError("No se pudo guardar; tu entrenamiento sigue aquí. Intenta de nuevo.");
         return;
       }
-      // El borrador local solo se borra cuando el servidor confirmó el guardado.
+      // Sin señal el entrenamiento queda en la cola (en el teléfono) y se sube solo al
+      // reconectar; por eso ya se puede liberar el borrador activo en ambos casos.
       await clearActiveDraft();
       setDraft(null);
-      setBrokenRecords(result.newRecords);
-    } catch {
-      setFinishError("Sin conexión; tu entrenamiento sigue aquí. Intenta de nuevo con señal.");
+      setSavedOffline(run.status === "queued");
+      setBrokenRecords(run.status === "done" ? run.result.newRecords : []);
     } finally {
       setIsFinishing(false);
     }
