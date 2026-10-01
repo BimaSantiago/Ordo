@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { randomUUID } from "crypto";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getLocalDateString } from "@/lib/date";
+import type { ActionResult } from "@/app/tareas/actions";
 
 async function requireUserId() {
   const supabase = await createSupabaseServerClient();
@@ -13,46 +13,16 @@ async function requireUserId() {
   return { supabase, userId: data.user.id };
 }
 
-export async function createTask(formData: FormData) {
-  const title = (formData.get("title") as string)?.trim();
-  if (!title) return;
+export async function createHabit(name: string): Promise<ActionResult> {
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, error: "Escribe el nombre del hábito." };
 
   const { supabase, userId } = await requireUserId();
-  await supabase.from("tasks").insert({
-    id: randomUUID(),
-    user_id: userId,
-    title,
-    due_date: getLocalDateString(),
-  });
+  const { error } = await supabase.from("habits").insert({ id: randomUUID(), user_id: userId, name: trimmed });
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath("/hoy");
-}
-
-export async function toggleTask(taskId: string, completed: boolean) {
-  const { supabase } = await requireUserId();
-  await supabase
-    .from("tasks")
-    .update({
-      status: completed ? "completada" : "pendiente",
-      completed_at: completed ? new Date().toISOString() : null,
-    })
-    .eq("id", taskId);
-
-  revalidatePath("/hoy");
-}
-
-export async function createHabit(formData: FormData) {
-  const name = (formData.get("name") as string)?.trim();
-  if (!name) return;
-
-  const { supabase, userId } = await requireUserId();
-  await supabase.from("habits").insert({
-    id: randomUUID(),
-    user_id: userId,
-    name,
-  });
-
-  revalidatePath("/hoy");
+  return { ok: true };
 }
 
 export async function toggleHabitToday(habitId: string, done: boolean) {
@@ -65,48 +35,37 @@ export async function toggleHabitToday(habitId: string, done: boolean) {
       { onConflict: "habit_id,local_date" }
     );
   } else {
-    await supabase
-      .from("habit_logs")
-      .delete()
-      .eq("habit_id", habitId)
-      .eq("local_date", localDate);
+    await supabase.from("habit_logs").delete().eq("habit_id", habitId).eq("local_date", localDate);
   }
 
   revalidatePath("/hoy");
 }
 
-export async function saveWeight(formData: FormData) {
-  const weightRaw = formData.get("weight") as string;
-  const weight = Number(weightRaw);
-  if (!weight || weight <= 0) return;
+export async function saveWeight(weightKg: number): Promise<ActionResult> {
+  if (!Number.isFinite(weightKg) || weightKg <= 0 || weightKg > 500) {
+    return { ok: false, error: "Peso inválido." };
+  }
 
   const { supabase, userId } = await requireUserId();
-  const localDate = getLocalDateString();
-
-  await supabase.from("body_weight_logs").upsert(
-    { id: randomUUID(), user_id: userId, local_date: localDate, weight_kg: weight },
+  const { error } = await supabase.from("body_weight_logs").upsert(
+    { id: randomUUID(), user_id: userId, local_date: getLocalDateString(), weight_kg: weightKg },
     { onConflict: "user_id,local_date" }
   );
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath("/hoy");
+  revalidatePath("/gimnasio/progreso", "layout");
+  return { ok: true };
 }
 
-export async function saveQuickNote(formData: FormData) {
-  const body = (formData.get("body") as string)?.trim();
-  if (!body) return;
+export async function saveQuickNote(body: string): Promise<ActionResult> {
+  const trimmed = body.trim();
+  if (!trimmed) return { ok: false, error: "La nota está vacía." };
 
   const { supabase, userId } = await requireUserId();
-  await supabase.from("notes").insert({
-    id: randomUUID(),
-    user_id: userId,
-    body,
-  });
+  const { error } = await supabase.from("notes").insert({ id: randomUUID(), user_id: userId, body: trimmed });
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath("/hoy");
-}
-
-export async function signOut() {
-  const { supabase } = await requireUserId();
-  await supabase.auth.signOut();
-  redirect("/login");
+  return { ok: true };
 }

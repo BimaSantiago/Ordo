@@ -1,26 +1,177 @@
 @import "tailwindcss";
 
+/*
+ * Tokens semánticos (flat, teal + acento naranja). Los componentes usan solo estas
+ * clases (bg-canvas, bg-surface, text-fg, text-muted, border-line, bg-primary...),
+ * nunca colores crudos, para que el modo oscuro funcione en toda la app.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --canvas: #f4f8f8;
+  --surface: #ffffff;
+  --surface-2: #eaf2f1;
+  --fg: #0f2a28;
+  --muted: #5b6b6a;
+  --line: #d5e3e1;
+  --primary: #0f766e;
+  --primary-soft: #d6f1ed;
+  --on-primary: #ffffff;
+  --accent: #ea580c;
+  --on-accent: #ffffff;
+  --danger: #dc2626;
+  --danger-soft: #fde8e8;
+  --success: #15803d;
+  --success-soft: #dcf5e4;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --canvas: #0b1214;
+    --surface: #121c1f;
+    --surface-2: #1a272a;
+    --fg: #e4efee;
+    --muted: #93a6a5;
+    --line: #26373a;
+    --primary: #2dd4bf;
+    --primary-soft: #123532;
+    --on-primary: #042f2e;
+    --accent: #fb923c;
+    --on-accent: #1c0a00;
+    --danger: #f87171;
+    --danger-soft: #3a1717;
+    --success: #4ade80;
+    --success-soft: #11301d;
+    color-scheme: dark;
   }
 }
 
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --font-sans: var(--font-jakarta);
+}
+
+/* Base móvil: que se sienta app instalada y no página web. */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--fg);
+}
+
+/* iOS hace zoom al enfocar inputs de menos de 16px. */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+button,
+a,
+[role="button"],
+summary {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Retroalimentación al presionar (no al soltar). */
+.pressable {
+  transition:
+    transform 120ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+.pressable:active {
+  transform: scale(0.97);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+/* Entrada del panel inferior: sube desde abajo (entra en 240ms, sale más rápido). */
+dialog.sheet {
+  transform: translateY(100%);
+  transition:
+    transform 180ms cubic-bezier(0.4, 0, 1, 1),
+    overlay 180ms allow-discrete,
+    display 180ms allow-discrete;
+}
+dialog.sheet[open] {
+  transform: translateY(0);
+  transition-duration: 240ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+@starting-style {
+  dialog.sheet[open] {
+    transform: translateY(100%);
+  }
+}
+@media (min-width: 768px) {
+  dialog.sheet,
+  dialog.sheet[open] {
+    transform: none;
+  }
+}
+
+/*
+ * Fotos de ejercicio "animadas": la segunda foto (posición final) aparece y desaparece sobre
+ * la primera cada segundo, como un GIF, solo con CSS.
+ */
+@keyframes exercise-swap {
+  0%,
+  40% {
+    opacity: 0;
+  }
+  50%,
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.exercise-anim > img + img {
+  animation: exercise-swap 2s ease-in-out infinite;
+}
+.exercise-anim[data-paused="true"] > img + img {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .exercise-anim > img + img {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
 }

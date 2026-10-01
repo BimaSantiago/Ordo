@@ -35,7 +35,15 @@ Las migraciones SQL están en `supabase/migrations/`. Para aplicarlas a un proye
 
 O bien copia y ejecuta el contenido de cada archivo, en orden, desde el SQL Editor del dashboard de Supabase.
 
-Las tablas de `00000000000002_gimnasio.sql` (biblioteca de ejercicios, rutinas, entrenamientos) quedan creadas desde ahora para el hito 1B, aunque la interfaz de esta fase todavía no las use.
+`00000000000002_gimnasio.sql` crea el esquema del gimnasio (biblioteca de ejercicios, rutinas, entrenamientos, series y récords personales).
+
+`00000000000003_horario.sql` agrega `schedule_categories` y `schedule_blocks` (materias/actividades y horario semanal, hito 1C) y una columna `category_id` en `tasks`.
+
+`00000000000004_seed_exercises.sql` siembra 876 ejercicios de [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (dominio público) en `exercises` como biblioteca global (`user_id null`), para el módulo de gimnasio.
+
+`00000000000006_exercise_images.sql` agrega `source_id` e `image_paths` a `exercises` (fotos de free-exercise-db). Se genera con `node scripts/generate-exercise-images-migration.mjs`.
+
+`00000000000005_tareas_con_hora.sql` agrega `start_time`, `end_time` y `remind_at` a `tasks`. Una tarea con hora es una "actividad" y se dibuja en su hora dentro de la tabla semanal. `remind_at` guarda el recordatorio elegido.
 
 ## Desarrollo
 
@@ -45,11 +53,16 @@ npm run build     # build de producción
 npm run start     # sirve el build de producción
 npm run lint      # ESLint
 npx tsc --noEmit  # chequeo de tipos
+npm run test      # Vitest
 ```
+
+Para probar en el celular (misma red Wi-Fi): `npm run dev -- -H 0.0.0.0` y abre `http://<IP-de-tu-PC>:3000`. Esa IP debe estar en `allowedDevOrigins` de `next.config.ts`; si no, la página carga pero ningún botón responde. Los detalles táctiles (teclado, áreas seguras, respuesta al tocar) solo se aprecian en hardware real.
 
 ## PWA
 
 El manifest está en `public/manifest.json` y el service worker en `public/sw.js` (registrado desde `components/service-worker-registration.tsx`). Cachea los assets estáticos y muestra `/offline` cuando no hay red al navegar.
+
+En Android: abre la app en Chrome → menú → "Agregar a pantalla principal".
 
 ## Despliegue
 
