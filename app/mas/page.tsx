@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, ChevronRight, Flame, Scale, Settings, Tags, type LucideIcon } from "lucide-react";
+import { Bell, ChevronRight, Download, Flame, Scale, Settings, ShieldCheck, Tags, type LucideIcon } from "lucide-react";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -23,6 +23,18 @@ const LINKS: { href: string; label: string; description: string; icon: LucideIco
     label: "Ajustes",
     description: "Kilogramos o libras, y tema claro u oscuro.",
     icon: Settings,
+  },
+  {
+    href: "/mas/seguridad",
+    label: "Seguridad",
+    description: "Verificación en dos pasos con app autenticadora.",
+    icon: ShieldCheck,
+  },
+  {
+    href: "/mas/respaldo",
+    label: "Respaldo",
+    description: "Descarga todos tus datos en JSON o CSV.",
+    icon: Download,
   },
   {
     href: "/materias",

@@ -228,6 +228,22 @@ Patrón a seguir para las demás pantallas:
   - `/habitos` muestra racha, mejor racha, porcentaje de la semana y del mes, puntos de la semana y mapa del mes. Ahí se crea y se edita en `HabitEditorSheet`.
   - El panel "+" usa los mismos `HabitFields`.
 
+### Seguridad y respaldo
+
+- **Verificación en dos pasos (TOTP)** con Supabase Auth MFA:
+  - Se activa y desactiva en `/mas/seguridad` (`mfa-settings.tsx`, con el cliente de navegador): `enroll`, QR, `challengeAndVerify` y `unenroll`. Los factores sin verificar se limpian antes de inscribir uno nuevo.
+  - **Lo hace cumplir el proxy** (`lib/supabase/middleware.ts`): si la sesión tiene `nextLevel === "aal2"` y `currentLevel !== "aal2"`, todo redirige a `/login/verificar` (`verify-form.tsx`, que verifica solo al completar los 6 dígitos). Con la sesión ya en aal2, `/login` y `/login/verificar` redirigen a `/hoy`.
+  - Las redirecciones del proxy conservan las cookies refrescadas (`redirectPreservingCookies`).
+  - Pendiente opcional: también exigir aal2 en RLS.
+  - Recuperación si se pierde el teléfono: borrar el factor en el dashboard de Supabase.
+- **Respaldo:**
+  - `app/api/export/route.ts` responde a `GET /api/export?format=json` con todas las tablas en un archivo, o a `?format=csv&table=<tabla>`.
+  - Pagina de 1000 en 1000, que es el límite de PostgREST.
+  - De `exercises` solo exporta los ejercicios personalizados.
+  - La lista de tablas está en `lib/export/tables.ts`: **agrega ahí las tablas nuevas**.
+  - `lib/export/csv.ts`, con pruebas, sigue RFC 4180 y agrega BOM para Excel.
+  - La UI está en `/mas/respaldo`. El SW no toca `/api/`.
+
 ### Ajustes: unidad de peso y tema (`app/mas/ajustes/`, `lib/settings*.ts`, `lib/units.ts`)
 
 - `user_settings` (migración 0008): `weight_unit` (kg o lb) y `theme` (system, light o dark). La base es la fuente de verdad.

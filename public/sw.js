@@ -42,6 +42,8 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (url.origin !== self.location.origin) return;
+  // Respaldo y otras rutas de API: siempre a la red, nunca desde caché.
+  if (url.pathname.startsWith("/api/")) return;
 
   // Pantallas: red primero; sin señal, la última copia de esa pantalla o la página offline.
   if (request.mode === "navigate") {
