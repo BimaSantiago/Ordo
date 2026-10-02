@@ -228,6 +228,15 @@ Patrón a seguir para las demás pantallas:
   - `/habitos` muestra racha, mejor racha, porcentaje de la semana y del mes, puntos de la semana y mapa del mes. Ahí se crea y se edita en `HabitEditorSheet`.
   - El panel "+" usa los mismos `HabitFields`.
 
+### Peso y medidas (`app/peso/`, `lib/body/trend.ts`)
+
+- `/peso` se abre desde la tarjeta de peso de Hoy y desde Más.
+  - **Peso:** último registro, tendencia (media móvil de 7 días) y cambio de la tendencia en 30 días. Gráfica con rangos de 30 días, 90 días o todo, registro con fecha (se reemplaza si ya hay uno ese día) e historial que se puede borrar.
+  - **Medidas corporales** (`body_measurements`) en cm: por tipo (cintura, cadera… o uno libre), cada una con su gráfica.
+- `lib/body/trend.ts`, con pruebas: `movingAverage` usa **días de calendario**, no "los últimos N registros", para que pesarse diario o cada tres días dé tendencias comparables. También `lastDays` y `trendChange`.
+- `components/trend-chart.tsx`: los registros se dibujan como puntos y la tendencia como línea, con colores de los tokens CSS.
+- Acciones `deleteWeight`, `saveMeasurement` y `deleteMeasurement` en `app/peso/actions.ts`. `saveWeight` sigue en `app/hoy/actions.ts`. Todas pasan por `runOrQueue`.
+
 ### Módulos "Materias" (`app/materias/`) y "Semana" (`app/horario/`)
 
 **Actividad = tarea con hora** (`tasks.start_time`/`end_time`, migración 0005). No hay una tabla aparte.

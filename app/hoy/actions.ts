@@ -121,6 +121,7 @@ export async function saveWeight(input: { localDate: string; weightKg: number })
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/hoy");
+  revalidatePath("/peso");
   revalidatePath("/gimnasio/progreso", "layout");
   return { ok: true };
 }

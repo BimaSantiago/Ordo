@@ -111,17 +111,17 @@ export default async function HoyPage() {
       <div className="grid grid-cols-3 gap-2">
         <Stat icon={<CheckSquare size={16} aria-hidden />} value={pendingCount} label="pendientes" />
         <Stat icon={<Flame size={16} aria-hidden />} value={`${habitsDone}/${todayHabits.length}`} label="hábitos" />
-        <QuickAddButton
-          prefill={{ tab: "peso" }}
-          aria-label={currentWeight ? `Peso de hoy ${currentWeight} kg, actualizar` : "Registrar peso de hoy"}
-          className="flex h-auto min-h-[4.5rem] flex-col items-start justify-center gap-0.5 rounded-2xl border border-line bg-surface px-3 text-left text-fg"
+        <Link
+          href="/peso"
+          aria-label={currentWeight ? `Peso de hoy ${currentWeight} kg, ver tendencia` : "Registrar peso y ver tendencia"}
+          className="pressable flex min-h-[4.5rem] flex-col items-start justify-center gap-0.5 rounded-2xl border border-line bg-surface px-3"
         >
           <span className="flex items-center gap-1.5 text-muted">
             <Scale size={16} aria-hidden />
           </span>
           <span className="text-lg leading-tight font-bold">{currentWeight ? `${currentWeight}` : "—"}</span>
           <span className="text-xs font-medium text-muted">{currentWeight ? "kg hoy" : "registrar"}</span>
-        </QuickAddButton>
+        </Link>
       </div>
 
       <section className="space-y-2">

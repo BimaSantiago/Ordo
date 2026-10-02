@@ -12,6 +12,7 @@ import {
 } from "@/app/hoy/actions";
 import { deleteBlock, saveBlock } from "@/app/horario/actions";
 import { createCategoryQuick } from "@/app/materias/actions";
+import { deleteMeasurement, deleteWeight, saveMeasurement } from "@/app/peso/actions";
 import { finishWorkout } from "@/app/gimnasio/entrenar/actions";
 import { enqueue, flushOutbox, type ActionResult } from "@/lib/offline/outbox";
 
@@ -29,6 +30,9 @@ const EXECUTORS = {
   deleteHabit,
   setHabitLog,
   saveWeight,
+  deleteWeight,
+  saveMeasurement,
+  deleteMeasurement,
   saveQuickNote,
   saveBlock,
   deleteBlock: (p: { blockId: string }) => deleteBlock(p.blockId),
