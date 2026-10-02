@@ -9,6 +9,8 @@ import { TaskRow, type TaskRowData } from "@/components/task-row";
 import { QuickAddButton } from "@/components/quick-add/quick-add-button";
 import { HabitItem, type TodayHabit } from "./habit-item";
 import { loadHabits } from "@/lib/habits/load";
+import { getSettings } from "@/lib/settings-server";
+import { formatWeight } from "@/lib/units";
 import { currentStreak, isCompleted, isDue } from "@/lib/habits/streaks";
 
 type Category = { name: string; color: string } | { name: string; color: string }[] | null;
@@ -30,6 +32,7 @@ type TimelineItem = {
 
 export default async function HoyPage() {
   const supabase = await createSupabaseServerClient();
+  const { weightUnit } = await getSettings();
   const localDate = getLocalDateString();
   const dayOfWeek = getLocalDayOfWeek(localDate);
 
@@ -71,7 +74,8 @@ export default async function HoyPage() {
       const logs = new Map(Object.entries(habit.logs));
       return { ...habit, todayValue: logs.get(localDate) ?? 0, streak: currentStreak(habit, logs, localDate) };
     });
-  const currentWeight = weightRes.data?.weight_kg as number | undefined;
+  // numeric de Postgres puede llegar como string.
+  const currentWeight = weightRes.data?.weight_kg != null ? Number(weightRes.data.weight_kg) : undefined;
 
   const timeline: TimelineItem[] = [
     ...(blocksRes.data ?? []).map((block) => {
@@ -113,14 +117,16 @@ export default async function HoyPage() {
         <Stat icon={<Flame size={16} aria-hidden />} value={`${habitsDone}/${todayHabits.length}`} label="hábitos" />
         <Link
           href="/peso"
-          aria-label={currentWeight ? `Peso de hoy ${currentWeight} kg, ver tendencia` : "Registrar peso y ver tendencia"}
+          aria-label={currentWeight ? `Peso de hoy ${formatWeight(currentWeight, weightUnit)}, ver tendencia` : "Registrar peso y ver tendencia"}
           className="pressable flex min-h-[4.5rem] flex-col items-start justify-center gap-0.5 rounded-2xl border border-line bg-surface px-3"
         >
           <span className="flex items-center gap-1.5 text-muted">
             <Scale size={16} aria-hidden />
           </span>
-          <span className="text-lg leading-tight font-bold">{currentWeight ? `${currentWeight}` : "—"}</span>
-          <span className="text-xs font-medium text-muted">{currentWeight ? "kg hoy" : "registrar"}</span>
+          <span className="text-lg leading-tight font-bold">
+            {currentWeight ? formatWeight(currentWeight, weightUnit, { withUnit: false }) : "—"}
+          </span>
+          <span className="text-xs font-medium text-muted">{currentWeight ? `${weightUnit} hoy` : "registrar"}</span>
         </Link>
       </div>
 

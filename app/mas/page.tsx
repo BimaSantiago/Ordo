@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, ChevronRight, Flame, Scale, Tags, type LucideIcon } from "lucide-react";
+import { Bell, ChevronRight, Flame, Scale, Settings, Tags, type LucideIcon } from "lucide-react";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -17,6 +17,12 @@ const LINKS: { href: string; label: string; description: string; icon: LucideIco
     label: "Peso y medidas",
     description: "Tendencia del peso y medidas corporales.",
     icon: Scale,
+  },
+  {
+    href: "/mas/ajustes",
+    label: "Ajustes",
+    description: "Kilogramos o libras, y tema claro u oscuro.",
+    icon: Settings,
   },
   {
     href: "/materias",

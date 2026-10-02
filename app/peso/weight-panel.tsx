@@ -11,6 +11,11 @@ import { useQuickAdd } from "@/components/quick-add/quick-add-provider";
 import { formatShortDate, getLocalDateString } from "@/lib/date";
 import { lastDays, movingAverage, trendChange, type DatedValue } from "@/lib/body/trend";
 import { cn } from "@/lib/cn";
+import { useSettings } from "@/components/settings-provider";
+import { fromKg, roundTo, toKg } from "@/lib/units";
+
+// Los valores ya están en la unidad del usuario.
+const decimal1 = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 1 });
 
 const RANGES = [
   { label: "30 días", days: 30 },
@@ -18,10 +23,11 @@ const RANGES = [
   { label: "Todo", days: null },
 ] as const;
 
-const kg = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 1 });
-
-export function WeightPanel({ weights, today }: { weights: DatedValue[]; today: string }) {
+export function WeightPanel({ weights: weightsKg, today }: { weights: DatedValue[]; today: string }) {
   const { showToast } = useQuickAdd();
+  const { weightUnit } = useSettings();
+  // Todo llega en kg; se muestra y se captura en la unidad del usuario.
+  const weights = weightsKg.map((w) => ({ ...w, value: fromKg(w.value, weightUnit) }));
   const [range, setRange] = useState<number | null>(30);
   const [date, setDate] = useState(today);
   const [value, setValue] = useState("");
@@ -35,10 +41,14 @@ export function WeightPanel({ weights, today }: { weights: DatedValue[]; today: 
   const history = [...weights].reverse();
 
   function save() {
-    const weightKg = Number(value.replace(",", "."));
+    const weightKg = roundTo(toKg(Number(value.replace(",", ".")), weightUnit), 2);
     setError(null);
     startTransition(async () => {
-      const run = await runOrQueue("saveWeight", { localDate: date, weightKg }, `Peso ${value} kg (${formatShortDate(date)})`);
+      const run = await runOrQueue(
+        "saveWeight",
+        { localDate: date, weightKg },
+        `Peso ${value} ${weightUnit} (${formatShortDate(date)})`
+      );
       if (run.status === "error") return setError(run.error);
       setValue("");
       setDate(getLocalDateString());
@@ -59,11 +69,11 @@ export function WeightPanel({ weights, today }: { weights: DatedValue[]; today: 
       <SectionTitle>Peso corporal</SectionTitle>
 
       <div className="grid grid-cols-3 gap-2">
-        <Stat label="último" value={latest ? `${kg.format(latest.value)}` : "—"} hint={latest ? formatShortDate(latest.localDate) : "sin registros"} />
-        <Stat label="tendencia" value={trend ? kg.format(trend.value) : "—"} hint="media 7 días" />
+        <Stat label="último" value={latest ? `${decimal1.format(latest.value)}` : "—"} hint={latest ? formatShortDate(latest.localDate) : "sin registros"} />
+        <Stat label="tendencia" value={trend ? decimal1.format(trend.value) : "—"} hint="media 7 días" />
         <Stat
           label="30 días"
-          value={change30 == null ? "—" : `${change30 > 0 ? "+" : ""}${kg.format(change30)}`}
+          value={change30 == null ? "—" : `${change30 > 0 ? "+" : ""}${decimal1.format(change30)}`}
           hint="cambio"
           icon={
             change30 == null || change30 === 0 ? null : change30 > 0 ? (
@@ -83,7 +93,7 @@ export function WeightPanel({ weights, today }: { weights: DatedValue[]; today: 
             </Chip>
           ))}
         </div>
-        <TrendChart points={lastDays(weights, range, today)} unit="kg" />
+        <TrendChart points={lastDays(weights, range, today)} unit={weightUnit} />
       </Card>
 
       <Card className="space-y-3 p-3">
@@ -107,8 +117,8 @@ export function WeightPanel({ weights, today }: { weights: DatedValue[]; today: 
             value={value}
             onChange={(e) => setValue(e.target.value)}
             inputMode="decimal"
-            placeholder="kg"
-            aria-label="Peso en kg"
+            placeholder={weightUnit}
+            aria-label={`Peso en ${weightUnit}`}
             enterKeyHint="done"
             className="min-h-12 w-24 rounded-xl border border-line bg-surface px-3 text-center text-lg font-semibold outline-none focus:border-primary"
           />
@@ -130,7 +140,9 @@ export function WeightPanel({ weights, today }: { weights: DatedValue[]; today: 
             <div key={entry.localDate} className="flex min-h-12 items-center justify-between gap-2 pl-3">
               <span className="text-sm text-muted">{formatShortDate(entry.localDate)}</span>
               <span className="flex items-center gap-1">
-                <span className="font-semibold tabular-nums">{kg.format(entry.value)} kg</span>
+                <span className="font-semibold tabular-nums">
+                  {decimal1.format(entry.value)} {weightUnit}
+                </span>
                 <button
                   type="button"
                   onClick={() => remove(entry.localDate)}

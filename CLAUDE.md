@@ -228,6 +228,20 @@ Patrón a seguir para las demás pantallas:
   - `/habitos` muestra racha, mejor racha, porcentaje de la semana y del mes, puntos de la semana y mapa del mes. Ahí se crea y se edita en `HabitEditorSheet`.
   - El panel "+" usa los mismos `HabitFields`.
 
+### Ajustes: unidad de peso y tema (`app/mas/ajustes/`, `lib/settings*.ts`, `lib/units.ts`)
+
+- `user_settings` (migración 0008): `weight_unit` (kg o lb) y `theme` (system, light o dark). La base es la fuente de verdad.
+  - Se copian a la cookie `life-os-settings`, que el layout lee en cada request sin ir a la base.
+  - `getSettings()` (en `lib/settings-server.ts`, con `cache` de React) usa la cookie y, si no existe, la base.
+  - La cookie se escribe al guardar ajustes y al iniciar sesión (`writeSettingsCookie`).
+- **Tema:** el layout pone `data-theme` en `<html>` desde el servidor, así no hay parpadeo. `generateViewport` ajusta `themeColor`. En `globals.css` el bloque oscuro aplica con `@media (prefers-color-scheme: dark) :root:not([data-theme="light"])` o con `:root[data-theme="dark"]`.
+- **Unidades:** **todo se guarda en kg**. `lib/units.ts`, con pruebas, convierte solo al mostrar y al capturar:
+  - funciones `fromKg`, `toKg`, `toInputValue` (inputs con 2 decimales) y `formatWeight`;
+  - en Client Components: `useSettings()` de `components/settings-provider.tsx`;
+  - en Server Components: `await getSettings()`.
+  - Se aplica en Entrenar (inputs, referencia anterior, volumen y récords), en Progreso (`ProgressChart` recibe `unit`), en Peso, en Hoy y en el panel "+".
+  - Las medidas corporales siempre son en cm.
+
 ### Peso y medidas (`app/peso/`, `lib/body/trend.ts`)
 
 - `/peso` se abre desde la tarjeta de peso de Hoy y desde Más.
@@ -260,6 +274,11 @@ En Materias, `category-item.tsx` edita en un `Sheet` (nombre, tipo, color de `li
 Hub en `/gimnasio` con enlaces a `/gimnasio/entrenar`, `/gimnasio/progreso`, `/gimnasio/rutinas` y `/gimnasio/ejercicios`. Ejercicios, rutinas y progreso siguen el patrón `page.tsx`/`actions.ts` ya establecido. `entrenar/` es distinto porque su estado vive primero en el navegador:
 
 - `lib/gimnasio/workout-draft.ts`: Dexie (`life-os-gimnasio`, tabla `drafts`) guarda el **entrenamiento en curso** bajo una llave fija (`draft.id = "active"`, solo puede haber uno). Esa llave **no** es el id del entrenamiento: `draft.workoutId` es el UUID que se guarda en `workouts.id`, estable entre recargas para que reintentar `finishWorkout` sea idempotente. `workout-session.tsx` (Client Component) lee/escribe ahí en cada cambio — así la sesión sobrevive a cierres de la app, recargas y pérdida de señal sin depender de Supabase mientras se entrena.
+- En Entrenar se puede:
+  - **reordenar** ejercicios con botones subir y bajar (`moveDraftExercise` y `removeDraftExercise` renumeran `position`; tienen pruebas);
+  - escribir **notas** plegables por ejercicio y por entrenamiento (`draft.notes`, `exercise.notes`);
+  - **descartar** el entrenamiento, con confirmación en dos toques.
+- En Rutinas, las series objetivo y el rango de repeticiones de cada ejercicio se editan en línea y se guardan al salir del campo (`updateRoutineExercise`). Las acciones de rutinas revalidan `/gimnasio/rutinas` con `"layout"` para incluir la página de cada rutina.
 - `lib/gimnasio/live-stats.ts`: cálculos puros (duración transcurrida, volumen, series completadas) sobre el draft, cubiertos por Vitest.
 - `app/gimnasio/entrenar/actions.ts`: `getPreviousExerciseSets` (referencia de la sesión anterior por ejercicio) y `finishWorkout` (vuelca el draft a `workouts`/`workout_exercises`/`workout_sets` con upserts en lote, detecta e inserta récords en `personal_records` y regresa `{ ok, newRecords }` o `{ ok: false, error }`). El cliente **solo borra Dexie si `ok`**; si falla, el entrenamiento sigue en pantalla para reintentar. Solo se toca Supabase al agregar ejercicios, consultar referencia o finalizar — nunca en cada tecla.
 - `lib/gimnasio/records.ts`: 1RM con Epley, valores de récord por serie y `detectNewRecords` (solo superar cuenta; un empate no). Las series de **calentamiento no cuentan** para récords ni volumen (tampoco en el volumen en vivo); al fallo y drop set sí. Los récords se calculan solo al finalizar un entrenamiento.
@@ -292,6 +311,7 @@ Migraciones SQL planas (sin CLI de Supabase todavía integrada al flujo). Cada t
 - `00000000000001_core.sql`: tablas del hito 1A (`projects`, `habits`, `habit_logs`, `tasks`, `ideas`, `notes`, `body_weight_logs`, `body_measurements`).
 - `00000000000002_gimnasio.sql`: esquema completo del hito 1B (`exercises`, `routines`, `routine_exercises`, `workouts`, `workout_exercises`, `workout_sets`, `personal_records`), creado por adelantado pero sin UI todavía.
 - `00000000000003_horario.sql`: hito 1C (`schedule_categories`, `schedule_blocks`) y columna `tasks.category_id`.
+- `00000000000008_user_settings.sql`: tabla `user_settings` (unidad de peso y tema), una fila por usuario, con RLS.
 - `00000000000007_habitos_meta.sql`: `habits.unit`, `habit_logs.value` y reglas (ciertos días con al menos un día, meta > 0).
 - `00000000000006_exercise_images.sql`: `exercises.source_id` e `image_paths` (rutas relativas de las fotos). Es **generada** por `scripts/generate-exercise-images-migration.mjs`: no se edita a mano.
 - `00000000000005_tareas_con_hora.sql`: `tasks.start_time`, `end_time` y `remind_at`, más índices por `due_date` y `remind_at`.

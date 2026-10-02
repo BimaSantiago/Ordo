@@ -8,6 +8,8 @@ import { Chip } from "@/components/ui/chip";
 import { CategoryPicker } from "@/components/category-picker";
 import { DayPicker } from "@/components/day-picker";
 import { runOrQueue } from "@/components/offline/run-or-queue";
+import { useSettings } from "@/components/settings-provider";
+import { roundTo, toKg } from "@/lib/units";
 import { EMPTY_HABIT, HabitFields, isHabitDraftValid, type HabitDraft } from "@/components/habits/habit-fields";
 import { listActiveCategories, type QuickCategory } from "@/app/materias/actions";
 import { getLocalDateString, getLocalTimeString, minutesToTime, timeToMinutes } from "@/lib/date";
@@ -107,6 +109,7 @@ function QuickAddForm({
   // Hábito / peso / nota
   const [simpleValue, setSimpleValue] = useState("");
   const [habitDraft, setHabitDraft] = useState<HabitDraft>(EMPTY_HABIT);
+  const { weightUnit } = useSettings();
 
   useEffect(() => {
     // Sin señal se usa la última lista conocida para poder elegir materia igual.
@@ -179,8 +182,11 @@ function QuickAddForm({
           : tab === "peso"
             ? await runOrQueue(
                 "saveWeight",
-                { localDate: getLocalDateString(), weightKg: Number(simpleValue.replace(",", ".")) },
-                `Peso ${simpleValue} kg`
+                {
+                  localDate: getLocalDateString(),
+                  weightKg: roundTo(toKg(Number(simpleValue.replace(",", ".")), weightUnit), 2),
+                },
+                `Peso ${simpleValue} ${weightUnit}`
               )
             : await runOrQueue("saveQuickNote", { id: createId(), body: simpleValue }, "Nota rápida");
       if (run.status === "error") return setError(run.error);
@@ -319,7 +325,7 @@ function QuickAddForm({
       )}
       {tab === "peso" && (
         <SimpleInput
-          label="Peso de hoy (kg)"
+          label={`Peso de hoy (${weightUnit})`}
           placeholder="72.5"
           inputMode="decimal"
           value={simpleValue}

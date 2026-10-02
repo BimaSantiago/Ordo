@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { loadSettingsFromDb, writeSettingsCookie } from "@/lib/settings-server";
 
 export async function signIn(formData: FormData) {
   const email = formData.get("email") as string;
@@ -13,6 +14,9 @@ export async function signIn(formData: FormData) {
   if (error) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
+
+  // En un dispositivo nuevo, traer unidad y tema guardados para pintar bien desde el inicio.
+  await writeSettingsCookie(await loadSettingsFromDb(supabase));
 
   redirect("/hoy");
 }

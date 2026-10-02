@@ -3,17 +3,19 @@ import { notFound } from "next/navigation";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSettings } from "@/lib/settings-server";
+import { formatWeight } from "@/lib/units";
 import { formatDisplayDate, getLocalDateString } from "@/lib/date";
 import { formatElapsed } from "@/lib/gimnasio/live-stats";
 import { summarizeWorkout } from "@/lib/gimnasio/progress";
 import { SET_TYPE_LABELS, type SetType } from "@/lib/gimnasio/workout-draft";
 import { mapWorkoutRow, WORKOUT_WITH_SETS_SELECT } from "@/lib/gimnasio/workout-rows";
 
-const kg = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 1 });
 
 export default async function WorkoutDetailPage({ params }: { params: Promise<{ workoutId: string }> }) {
   const { workoutId } = await params;
   const supabase = await createSupabaseServerClient();
+  const { weightUnit } = await getSettings();
 
   const { data: row } = await supabase
     .from("workouts")
@@ -32,7 +34,7 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
         title={workout.name ?? "Entrenamiento"}
         subtitle={`${formatDisplayDate(getLocalDateString(new Date(workout.startedAt)))} · ${formatElapsed(
           summary.durationSeconds
-        )} · ${kg.format(summary.volumeKg)} kg`}
+        )} · ${formatWeight(summary.volumeKg, weightUnit, { decimals: 0 })}`}
         backHref="/gimnasio/progreso"
         backLabel="Progreso"
       />
@@ -48,7 +50,7 @@ export default async function WorkoutDetailPage({ params }: { params: Promise<{ 
             <ol className="space-y-0.5 text-sm">
               {exercise.sets.map((set, index) => (
                 <li key={set.id} className={set.completed ? "" : "text-muted line-through"}>
-                  {index + 1}. {set.weightKg ?? "-"} kg × {set.reps ?? "-"}
+                  {index + 1}. {set.weightKg == null ? "-" : formatWeight(set.weightKg, weightUnit)} × {set.reps ?? "-"}
                   {set.setType !== "normal" && (
                     <span className="text-muted"> · {SET_TYPE_LABELS[set.setType as SetType] ?? set.setType}</span>
                   )}

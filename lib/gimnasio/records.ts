@@ -1,4 +1,6 @@
-export type RecordType = "peso" | "repeticiones" | "one_rm_estimado" | "volumen_serie";
+import { formatWeight, type WeightUnit } from "../units";
+
+export type RecordType ="peso" | "repeticiones" | "one_rm_estimado" | "volumen_serie";
 
 export const RECORD_TYPES: RecordType[] = ["peso", "repeticiones", "one_rm_estimado", "volumen_serie"];
 
@@ -94,6 +96,7 @@ export function detectNewRecords(sets: RecordSet[], currentBests: CurrentBests):
   return [...best.values()];
 }
 
-export function formatRecordValue(recordType: RecordType, value: number): string {
-  return recordType === "repeticiones" ? `${value} reps` : `${value} kg`;
+/** Los récords se guardan en kg; se muestran en la unidad del usuario. */
+export function formatRecordValue(recordType: RecordType, value: number, unit: WeightUnit = "kg"): string {
+  return recordType === "repeticiones" ? `${value} reps` : formatWeight(value, unit);
 }

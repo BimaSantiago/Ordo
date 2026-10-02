@@ -105,6 +105,21 @@ export function createDraftSet(position: number, setType: SetType = "normal"): D
   };
 }
 
+/** Mueve un ejercicio una posición arriba o abajo y renumera `position` (lo que se guarda al finalizar). */
+export function moveDraftExercise(exercises: DraftExercise[], exerciseId: string, direction: "up" | "down"): DraftExercise[] {
+  const index = exercises.findIndex((e) => e.id === exerciseId);
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (index === -1 || target < 0 || target >= exercises.length) return exercises;
+  const next = [...exercises];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next.map((exercise, position) => ({ ...exercise, position }));
+}
+
+/** Quita un ejercicio y renumera las posiciones para que no queden huecos. */
+export function removeDraftExercise(exercises: DraftExercise[], exerciseId: string): DraftExercise[] {
+  return exercises.filter((e) => e.id !== exerciseId).map((exercise, position) => ({ ...exercise, position }));
+}
+
 export function createDraftExercise(
   exerciseId: string,
   exerciseName: string,

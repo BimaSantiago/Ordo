@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSettings } from "@/lib/settings-server";
+import { formatWeight } from "@/lib/units";
 import { formatShortDate, getLocalDateString, getLocalWeekStart } from "@/lib/date";
 import { translateMuscleGroup } from "@/lib/exercises";
 import { formatElapsed } from "@/lib/gimnasio/live-stats";
@@ -10,10 +12,11 @@ import { mapWorkoutRow, WORKOUT_WITH_SETS_SELECT } from "@/lib/gimnasio/workout-
 
 const HISTORY_LIMIT = 50;
 
-const kg = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 });
+
 
 export default async function ProgresoPage() {
   const supabase = await createSupabaseServerClient();
+  const { weightUnit } = await getSettings();
 
   const { data: workoutRows } = await supabase
     .from("workouts")
@@ -56,8 +59,8 @@ export default async function ProgresoPage() {
             <p className="text-xs text-muted">series</p>
           </div>
           <div>
-            <p className="text-lg font-semibold">{kg.format(week.volumeKg)}</p>
-            <p className="text-xs text-muted">kg volumen</p>
+            <p className="text-lg font-semibold">{formatWeight(week.volumeKg, weightUnit, { decimals: 0, withUnit: false })}</p>
+            <p className="text-xs text-muted">{weightUnit} volumen</p>
           </div>
         </div>
         {week.volumeByMuscle.length > 0 && (
@@ -65,7 +68,7 @@ export default async function ProgresoPage() {
             {week.volumeByMuscle.map((item) => (
               <li key={item.muscle ?? "sin-grupo"} className="flex justify-between text-sm">
                 <span>{translateMuscleGroup(item.muscle)}</span>
-                <span className="text-muted">{kg.format(item.volumeKg)} kg</span>
+                <span className="text-muted">{formatWeight(item.volumeKg, weightUnit, { decimals: 0 })}</span>
               </li>
             ))}
           </ul>
@@ -98,7 +101,7 @@ export default async function ProgresoPage() {
                         {formatShortDate(workout.localDate)} · {formatElapsed(summary.durationSeconds)}
                       </p>
                     </div>
-                    <p className="text-sm text-muted">{kg.format(summary.volumeKg)} kg</p>
+                    <p className="text-sm text-muted">{formatWeight(summary.volumeKg, weightUnit, { decimals: 0 })}</p>
                   </Link>
                 </li>
               );

@@ -12,7 +12,30 @@ async function requireUserId() {
 }
 
 function revalidateRoutines() {
-  revalidatePath("/gimnasio/rutinas");
+  // "layout" incluye /gimnasio/rutinas/[routineId] y Entrenar (que lista las rutinas).
+  revalidatePath("/gimnasio/rutinas", "layout");
+  revalidatePath("/gimnasio/entrenar");
+}
+
+/** Edita series objetivo y rango de repeticiones de un ejercicio ya agregado a la rutina. */
+export async function updateRoutineExercise(input: {
+  routineExerciseId: string;
+  targetSets: number | null;
+  targetRepRange: string | null;
+}) {
+  const targetSets =
+    input.targetSets != null && Number.isInteger(input.targetSets) && input.targetSets > 0 && input.targetSets <= 20
+      ? input.targetSets
+      : null;
+  const targetRepRange = input.targetRepRange?.trim().slice(0, 20) || null;
+
+  const { supabase } = await requireUserId();
+  await supabase
+    .from("routine_exercises")
+    .update({ target_sets: targetSets, target_rep_range: targetRepRange })
+    .eq("id", input.routineExerciseId);
+
+  revalidateRoutines();
 }
 
 export async function createRoutine(formData: FormData) {

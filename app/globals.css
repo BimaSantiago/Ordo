@@ -24,8 +24,12 @@
   color-scheme: light;
 }
 
+/*
+ * Tema oscuro: si el sistema lo pide y no se forzó el claro (data-theme="light"), o si se forzó
+ * el oscuro (data-theme="dark"). El layout pone data-theme desde el servidor según los ajustes.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --canvas: #0b1214;
     --surface: #121c1f;
     --surface-2: #1a272a;
@@ -43,6 +47,25 @@
     --success-soft: #11301d;
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --canvas: #0b1214;
+  --surface: #121c1f;
+  --surface-2: #1a272a;
+  --fg: #e4efee;
+  --muted: #93a6a5;
+  --line: #26373a;
+  --primary: #2dd4bf;
+  --primary-soft: #123532;
+  --on-primary: #042f2e;
+  --accent: #fb923c;
+  --on-accent: #1c0a00;
+  --danger: #f87171;
+  --danger-soft: #3a1717;
+  --success: #4ade80;
+  --success-soft: #11301d;
+  color-scheme: dark;
 }
 
 @theme inline {

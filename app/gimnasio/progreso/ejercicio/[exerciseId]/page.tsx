@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { ProgressChart } from "@/components/progress-chart";
+import { getSettings } from "@/lib/settings-server";
+import { formatWeight } from "@/lib/units";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatShortDate, getLocalDateString } from "@/lib/date";
 import { EXERCISE_INFO_COLUMNS, translateMuscleGroup, type ExerciseInfo } from "@/lib/exercises";
@@ -17,6 +19,7 @@ const SESSION_LIMIT = 100;
 export default async function ExerciseProgressPage({ params }: { params: Promise<{ exerciseId: string }> }) {
   const { exerciseId } = await params;
   const supabase = await createSupabaseServerClient();
+  const { weightUnit } = await getSettings();
 
   const { data: exercise } = await supabase
     .from("exercises")
@@ -98,7 +101,7 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
             return (
               <div key={type} className="rounded-lg border border-line px-3 py-2">
                 <p className="text-xs text-muted">{RECORD_LABELS[type]}</p>
-                <p className="font-semibold">{record ? formatRecordValue(type, record.value) : "—"}</p>
+                <p className="font-semibold">{record ? formatRecordValue(type, record.value, weightUnit) : "—"}</p>
                 {record && (
                   <p className="text-xs text-muted">{formatShortDate(getLocalDateString(new Date(record.achievedAt)))}</p>
                 )}
@@ -110,7 +113,7 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
 
       <section className="space-y-2">
         <h2 className="text-sm font-medium text-muted">Progresión</h2>
-        <ProgressChart points={points} bodyWeight={bodyWeight} />
+        <ProgressChart points={points} bodyWeight={bodyWeight} unit={weightUnit} />
       </section>
 
       <section className="space-y-2">
@@ -132,7 +135,7 @@ export default async function ExerciseProgressPage({ params }: { params: Promise
                   <p className="text-sm text-muted">
                     {session.sets
                       .filter((set) => set.completed)
-                      .map((set) => `${set.weightKg ?? "-"}×${set.reps ?? "-"}`)
+                      .map((set) => `${set.weightKg == null ? "-" : formatWeight(set.weightKg, weightUnit, { withUnit: false })}×${set.reps ?? "-"}`)
                       .join(", ") || "Sin series completadas"}
                   </p>
                 </Link>
