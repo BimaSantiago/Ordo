@@ -156,7 +156,7 @@ Todas las tablas llevan `user_id`, `created_at`, `updated_at` y **RLS activado**
 
 ## 9. Pendientes abiertos
 
-- Definir el modelo de hábitos (diarios, por días de la semana, con meta numérica) con el usuario al iniciar la fase 1.
+- ~~Definir el modelo de hábitos~~ Decidido: sí/no o meta numérica al día, todos los días o ciertos días (sin "X veces por semana").
 - Confirmar si Fitia escribe en Health Connect.
 - Decidir nombre y diseño visual de la app.
 
@@ -207,6 +207,26 @@ Patrón a seguir para las demás pantallas:
 - `page.tsx` es un Server Component: lee todo con el cliente de servidor de Supabase (tareas, bloques y hábitos del día, peso vía `local_date` calculado con `lib/date.ts`) y renderiza. Muestra resumen, "Tu día" (bloques y actividades por hora), tareas y hábitos. Ya no tiene formularios: todo se captura con el "+".
 - Las Server Actions regresan `{ ok: true } | { ok: false, error }` (`ActionResult`) para que el panel muestre errores. Las tareas viven en `app/tareas/actions.ts` (`saveTask` crea o actualiza con un **id generado en el cliente**, `toggleTask`, `deleteTask`, que revalidan `/hoy` y `/horario`). Hábito, peso y nota están en `app/hoy/actions.ts`.
 - Las piezas interactivas (`components/task-row.tsx`, `app/hoy/habit-item.tsx`) usan `useOptimistic` y `useTransition` y llaman a las Server Actions directamente; no hay store global.
+
+### Hábitos (`app/habitos/`, `components/habits/`, `lib/habits/`)
+
+- **Modelo**, que combina tipo y frecuencia:
+  - Tipo **sí/no** (`target_count` null) o **meta numérica al día** (`target_count` más `unit`, por ejemplo 8 vasos).
+  - Frecuencia **todos los días** (`frequency = 'diaria'`) o **ciertos días** (`'dias_semana'` + `frequency_days`, con 0 = domingo).
+  - `habit_logs.value` (migración 0007) guarda el valor del día: 1 para sí/no y la cuenta para los numéricos. Un log sin valor cuenta como 1.
+- **Lógica pura** en `lib/habits/streaks.ts`, con pruebas: `isDue`, `isCompleted`, `currentStreak`, `bestStreak`, `dayStatus` y `completionRate`.
+  - Los días que no tocan no rompen la racha.
+  - Hoy pendiente tampoco la rompe, hasta que termine el día.
+  - Los días anteriores a la creación del hábito (`startDate`) no cuentan como fallados.
+- `lib/habits/load.ts` (`loadHabits`) carga hábitos e historial y los deja serializables para el cliente. Se usa en Hoy y en `/habitos`.
+- **Escritura:**
+  - `setHabitLog({ habitId, localDate, value })` guarda un **valor absoluto** con la fecha del cliente; 0 borra el registro.
+  - `saveHabit`, `setHabitArchived` y `deleteHabit`.
+  - Todas pasan por `runOrQueue`.
+- **Interfaz:**
+  - Hoy muestra solo los hábitos que tocan ese día (`app/hoy/habit-item.tsx`): sí/no con un toque y numéricos con −/+ y barra de progreso, con la racha.
+  - `/habitos` muestra racha, mejor racha, porcentaje de la semana y del mes, puntos de la semana y mapa del mes. Ahí se crea y se edita en `HabitEditorSheet`.
+  - El panel "+" usa los mismos `HabitFields`.
 
 ### Módulos "Materias" (`app/materias/`) y "Semana" (`app/horario/`)
 
@@ -263,6 +283,7 @@ Migraciones SQL planas (sin CLI de Supabase todavía integrada al flujo). Cada t
 - `00000000000001_core.sql`: tablas del hito 1A (`projects`, `habits`, `habit_logs`, `tasks`, `ideas`, `notes`, `body_weight_logs`, `body_measurements`).
 - `00000000000002_gimnasio.sql`: esquema completo del hito 1B (`exercises`, `routines`, `routine_exercises`, `workouts`, `workout_exercises`, `workout_sets`, `personal_records`), creado por adelantado pero sin UI todavía.
 - `00000000000003_horario.sql`: hito 1C (`schedule_categories`, `schedule_blocks`) y columna `tasks.category_id`.
+- `00000000000007_habitos_meta.sql`: `habits.unit`, `habit_logs.value` y reglas (ciertos días con al menos un día, meta > 0).
 - `00000000000006_exercise_images.sql`: `exercises.source_id` e `image_paths` (rutas relativas de las fotos). Es **generada** por `scripts/generate-exercise-images-migration.mjs`: no se edita a mano.
 - `00000000000005_tareas_con_hora.sql`: `tasks.start_time`, `end_time` y `remind_at`, más índices por `due_date` y `remind_at`.
 - `00000000000004_seed_exercises.sql`: siembra 876 ejercicios de free-exercise-db en `exercises` con `user_id null` (biblioteca global). Nombres y grupos musculares en inglés tal cual el dataset; ver `lib/exercises.ts` para la traducción en la capa de presentación.

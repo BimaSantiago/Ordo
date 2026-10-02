@@ -1,7 +1,15 @@
 "use client";
 
 import { deleteTask, saveTask, toggleTask } from "@/app/tareas/actions";
-import { createHabit, saveQuickNote, saveWeight, setHabitLog } from "@/app/hoy/actions";
+import {
+  createHabit,
+  deleteHabit,
+  saveHabit,
+  saveQuickNote,
+  saveWeight,
+  setHabitArchived,
+  setHabitLog,
+} from "@/app/hoy/actions";
 import { deleteBlock, saveBlock } from "@/app/horario/actions";
 import { createCategoryQuick } from "@/app/materias/actions";
 import { finishWorkout } from "@/app/gimnasio/entrenar/actions";
@@ -16,6 +24,9 @@ const EXECUTORS = {
   toggleTask: (p: { taskId: string; completed: boolean }) => toggleTask(p.taskId, p.completed),
   deleteTask: (p: { taskId: string }) => deleteTask(p.taskId),
   createHabit,
+  saveHabit,
+  setHabitArchived,
+  deleteHabit,
   setHabitLog,
   saveWeight,
   saveQuickNote,

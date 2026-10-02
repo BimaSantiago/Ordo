@@ -1,11 +1,17 @@
 import Link from "next/link";
-import { Bell, ChevronRight, Tags, type LucideIcon } from "lucide-react";
+import { Bell, ChevronRight, Flame, Tags, type LucideIcon } from "lucide-react";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SignOutButton } from "./sign-out-button";
 
 const LINKS: { href: string; label: string; description: string; icon: LucideIcon }[] = [
+  {
+    href: "/habitos",
+    label: "Hábitos",
+    description: "Rachas, historial de la semana y del mes.",
+    icon: Flame,
+  },
   {
     href: "/materias",
     label: "Materias y actividades",

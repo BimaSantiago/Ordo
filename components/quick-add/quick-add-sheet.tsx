@@ -8,6 +8,7 @@ import { Chip } from "@/components/ui/chip";
 import { CategoryPicker } from "@/components/category-picker";
 import { DayPicker } from "@/components/day-picker";
 import { runOrQueue } from "@/components/offline/run-or-queue";
+import { EMPTY_HABIT, HabitFields, isHabitDraftValid, type HabitDraft } from "@/components/habits/habit-fields";
 import { listActiveCategories, type QuickCategory } from "@/app/materias/actions";
 import { getLocalDateString, getLocalTimeString, minutesToTime, timeToMinutes } from "@/lib/date";
 import { computeRemindAt, REMINDER_LABELS, reminderOptionsFor, type ReminderOption } from "@/lib/reminders";
@@ -105,6 +106,7 @@ function QuickAddForm({
 
   // Hábito / peso / nota
   const [simpleValue, setSimpleValue] = useState("");
+  const [habitDraft, setHabitDraft] = useState<HabitDraft>(EMPTY_HABIT);
 
   useEffect(() => {
     // Sin señal se usa la última lista conocida para poder elegir materia igual.
@@ -173,7 +175,7 @@ function QuickAddForm({
 
       const run =
         tab === "habito"
-          ? await runOrQueue("createHabit", { id: createId(), name: simpleValue }, `Hábito "${simpleValue.trim()}"`)
+          ? await runOrQueue("saveHabit", { ...habitDraft, id: createId() }, `Hábito "${habitDraft.name.trim()}"`)
           : tab === "peso"
             ? await runOrQueue(
                 "saveWeight",
@@ -189,7 +191,11 @@ function QuickAddForm({
   }
 
   const canSubmit =
-    tab === "tarea" || tab === "actividad" ? title.trim().length > 0 && (!hasTime || Boolean(startTime)) : simpleValue.trim().length > 0;
+    tab === "tarea" || tab === "actividad"
+      ? title.trim().length > 0 && (!hasTime || Boolean(startTime))
+      : tab === "habito"
+        ? isHabitDraftValid(habitDraft)
+        : simpleValue.trim().length > 0;
 
   return (
     <form
@@ -309,7 +315,7 @@ function QuickAddForm({
       )}
 
       {tab === "habito" && (
-        <SimpleInput label="Nuevo hábito" placeholder="p. ej. Leer 20 minutos" value={simpleValue} onChange={setSimpleValue} />
+        <HabitFields value={habitDraft} onChange={setHabitDraft} autoFocus />
       )}
       {tab === "peso" && (
         <SimpleInput
