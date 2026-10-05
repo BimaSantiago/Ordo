@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { CalendarDays } from "lucide-react";
 import { Chip } from "@/components/ui/chip";
-import { addDaysToLocalDate, formatShortDate, getLocalDateString, getLocalWeekStart } from "@/lib/date";
+import { addDaysToLocalDate, formatShortDate, getLocalDateString, getLocalDayOfWeek, getLocalWeekStart } from "@/lib/date";
 
 const SHORT_DAYS = ["L", "M", "M", "J", "V", "S", "D"];
 
@@ -13,10 +13,11 @@ export function DayPicker({ value, onChange }: { value: string; onChange: (local
   const tomorrow = addDaysToLocalDate(today, 1);
 
   const weekDays = useMemo(() => {
-    // Si estás en domingo, lo útil es la semana que empieza mañana.
-    const start = getLocalWeekStart(value < today ? today : value);
+    // Si estás en domingo, lo útil es la semana que empieza mañana ("Hoy" ya tiene su propio chip).
+    const anchor = value > today ? value : getLocalDayOfWeek(today) === 0 ? tomorrow : today;
+    const start = getLocalWeekStart(anchor);
     return Array.from({ length: 7 }, (_, i) => addDaysToLocalDate(start, i));
-  }, [today, value]);
+  }, [today, tomorrow, value]);
 
   const isOther = value !== today && value !== tomorrow && !weekDays.includes(value);
 

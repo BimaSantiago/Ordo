@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarClock, CheckSquare, Clock, Flame, Plus, Scale } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { addDaysToLocalDate, formatDisplayDate, getLocalDateString, getLocalDayOfWeek } from "@/lib/date";
+import { addDaysToLocalDate, formatDisplayDate, formatShortDate, getLocalDateString, getLocalDayOfWeek } from "@/lib/date";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, SectionTitle } from "@/components/ui/card";
@@ -45,7 +45,14 @@ export default async function HoyPage() {
       .order("created_at", { ascending: true }),
     // Historial suficiente para calcular rachas largas (las rachas se limitan a 2 años).
     loadHabits(supabase, { sinceDate: addDaysToLocalDate(localDate, -730), includeArchived: false }),
-    supabase.from("body_weight_logs").select("weight_kg").eq("local_date", localDate).maybeSingle(),
+    // Último registro (hoy o antes): si hoy no te has pesado, la tarjeta muestra el anterior con su fecha.
+    supabase
+      .from("body_weight_logs")
+      .select("weight_kg, local_date")
+      .lte("local_date", localDate)
+      .order("local_date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     supabase
       .from("schedule_blocks")
       .select("id, start_time, end_time, notes, schedule_categories(name, color)")
@@ -75,7 +82,10 @@ export default async function HoyPage() {
       return { ...habit, todayValue: logs.get(localDate) ?? 0, streak: currentStreak(habit, logs, localDate) };
     });
   // numeric de Postgres puede llegar como string.
-  const currentWeight = weightRes.data?.weight_kg != null ? Number(weightRes.data.weight_kg) : undefined;
+  const lastWeight = weightRes.data?.weight_kg != null ? Number(weightRes.data.weight_kg) : undefined;
+  const weighedToday = weightRes.data?.local_date === localDate;
+  const weightLabel =
+    lastWeight === undefined ? "registrar" : weighedToday ? `${weightUnit} hoy` : `${weightUnit} · ${formatShortDate(weightRes.data!.local_date)}`;
 
   const timeline: TimelineItem[] = [
     ...(blocksRes.data ?? []).map((block) => {
@@ -117,16 +127,20 @@ export default async function HoyPage() {
         <Stat icon={<Flame size={16} aria-hidden />} value={`${habitsDone}/${todayHabits.length}`} label="hábitos" />
         <Link
           href="/peso"
-          aria-label={currentWeight ? `Peso de hoy ${formatWeight(currentWeight, weightUnit)}, ver tendencia` : "Registrar peso y ver tendencia"}
+          aria-label={
+            lastWeight === undefined
+              ? "Registrar peso y ver tendencia"
+              : `${weighedToday ? "Peso de hoy" : "Último peso"} ${formatWeight(lastWeight, weightUnit)}, ver tendencia`
+          }
           className="pressable flex min-h-[4.5rem] flex-col items-start justify-center gap-0.5 rounded-2xl border border-line bg-surface px-3"
         >
           <span className="flex items-center gap-1.5 text-muted">
             <Scale size={16} aria-hidden />
           </span>
           <span className="text-lg leading-tight font-bold">
-            {currentWeight ? formatWeight(currentWeight, weightUnit, { withUnit: false }) : "—"}
+            {lastWeight === undefined ? "—" : formatWeight(lastWeight, weightUnit, { withUnit: false })}
           </span>
-          <span className="text-xs font-medium text-muted">{currentWeight ? `${weightUnit} hoy` : "registrar"}</span>
+          <span className="text-xs font-medium text-muted">{weightLabel}</span>
         </Link>
       </div>
 
