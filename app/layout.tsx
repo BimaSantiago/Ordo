@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   title: "Life OS",
   description: "Panel personal para hábitos, tareas, gimnasio, finanzas y notas.",
   manifest: "/manifest.json",
+  icons: { icon: "/icons/icon.svg", apple: "/icons/apple-touch-icon.png" },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

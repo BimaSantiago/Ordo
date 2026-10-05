@@ -171,10 +171,11 @@ export function WeekGridView({
             {hours.map((hour, i) => (
               <span
                 key={hour}
-                className="absolute right-1 -translate-y-1/2 text-[10px] font-medium text-muted tabular-nums"
+                // La primera hora se alinea abajo de la línea para no cortarse en el borde superior.
+                className={`absolute right-1 text-[10px] font-medium text-muted tabular-nums ${i === 0 ? "translate-y-0.5" : "-translate-y-1/2"}`}
                 style={{ top: i * HOUR_PX }}
               >
-                {i === 0 ? "" : hour}
+                {hour}
               </span>
             ))}
           </div>

@@ -2,7 +2,7 @@
 // viejo de Turbopack, pero igual se guardan copias para poder probar el modo sin conexión.
 const DEV = new URL(self.location.href).searchParams.has("dev");
 
-const CACHE_NAME = "life-os-v3";
+const CACHE_NAME = "life-os-v4";
 // Última versión de cada pantalla (HTML), para poder verla sin señal. Tiene datos personales:
 // se borra al cerrar sesión (mensaje "clear-pages" desde la app).
 const PAGES_CACHE = "life-os-pages-v1";
@@ -12,7 +12,7 @@ const IMAGE_HOST = "cdn.jsdelivr.net";
 const OFFLINE_URL = "/offline";
 const NO_CACHE_PAGES = ["/login", "/offline", "/api/"];
 
-const PRECACHE_URLS = [OFFLINE_URL, "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
+const PRECACHE_URLS = [OFFLINE_URL, "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/maskable-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)));

@@ -337,7 +337,8 @@ Al aplicar migraciones nuevas, sigue la convención de nombre `NNNNNNNNNNNNNN_de
 
 ### PWA
 
-- `public/manifest.json` + `public/icons/` (iconos placeholder generados a mano, sin diseño final — pendiente la sección 9 "decidir nombre y diseño visual de la app").
+- `public/manifest.json` + `public/icons/`: iconos provisionales (palomita en círculo sobre teal) **generados** por `node scripts/generate-icons.mjs` desde un SVG — `any` 192/512, `maskable` 512, `apple-touch-icon` y `icon.svg` (favicon, declarado en `metadata.icons` de `app/layout.tsx`). Diseño final pendiente (sección 9). Si cambian los iconos, sube `CACHE_NAME` en `public/sw.js` para que el celular deje de servir los viejos.
+- Despliegue en Vercel desde `main`. Las URLs por deployment (`ordo-<hash>-…vercel.app`) están protegidas por Vercel Authentication; para instalar la PWA usa el dominio de producción.
 - `public/sw.js`: service worker manual, sin Workbox ni `next-pwa`. Se descartó `next-pwa` porque no tiene mantenimiento y su cadena de dependencias tiene vulnerabilidades altas en `npm audit`.
   - Assets: cache-first en producción. En desarrollo se registra como `/sw.js?dev=1` y va primero a la red para no servir código viejo de Turbopack.
   - Pantallas: red primero, con respaldo de la última copia (`life-os-pages-v1`) o `/offline`. Las peticiones RSC de Next no se cachean; si fallan, Next recarga la página completa y esa recarga sale del caché.
