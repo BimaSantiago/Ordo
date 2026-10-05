@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Landmark, ListOrdered, PieChart, Plus, Settings2, Target } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, Landmark, ListOrdered, PieChart, Plus, Settings2, Target } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
@@ -16,12 +16,14 @@ import {
   groupByDay,
   isValidMonth,
   monthOf,
+  monthlyTotals,
   monthRange,
   summarize,
 } from "@/lib/finance/summary";
 import { addDaysToLocalDate, formatDisplayDate, getLocalDateString } from "@/lib/date";
 import { cn } from "@/lib/cn";
 import { TransactionRow } from "./transaction-row";
+import { MonthlyChart } from "@/components/finance/monthly-chart";
 
 export default async function FinanzasPage({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
   const { mes } = await searchParams;
@@ -34,12 +36,16 @@ export default async function FinanzasPage({ searchParams }: { searchParams: Pro
   const { data: auth } = await supabase.auth.getUser();
   if (auth.user) await ensureFinanceDefaults(supabase, auth.user.id);
 
-  const [accounts, categories, transactions, budgets] = await Promise.all([
+  // Tendencia: el mes visto y los 5 anteriores.
+  const trendFrom = addMonths(month, -5);
+  const [accounts, categories, trendTransactions, budgets] = await Promise.all([
     loadAccounts(supabase),
     loadCategories(supabase),
-    loadTransactions(supabase, from, to),
+    loadTransactions(supabase, monthRange(trendFrom).from, to),
     loadBudgets(supabase),
   ]);
+  const transactions = trendTransactions.filter((t) => t.localDate >= from);
+  const trend = monthlyTotals(trendTransactions, trendFrom, month);
 
   const categoryById = new Map(categories.map((c) => [c.id, c]));
   const accountById = new Map(accounts.map((a) => [a.id, a]));
@@ -221,6 +227,13 @@ export default async function FinanzasPage({ searchParams }: { searchParams: Pro
           </Card>
         </section>
       )}
+
+      <section className="space-y-2">
+        <SectionTitle icon={<BarChart3 size={16} aria-hidden />}>Últimos 6 meses</SectionTitle>
+        <Card className="px-2 py-3">
+          <MonthlyChart data={trend} />
+        </Card>
+      </section>
 
       <section className="space-y-2">
         <SectionTitle icon={<ListOrdered size={16} aria-hidden />}>Movimientos</SectionTitle>
