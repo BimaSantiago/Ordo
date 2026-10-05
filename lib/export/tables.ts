@@ -17,6 +17,10 @@ export const EXPORT_TABLES = [
   { table: "notes", label: "Notas" },
   { table: "ideas", label: "Ideas" },
   { table: "projects", label: "Proyectos" },
+  { table: "finance_accounts", label: "Cuentas" },
+  { table: "finance_categories", label: "Categorías de finanzas" },
+  { table: "transactions", label: "Movimientos de dinero" },
+  { table: "budgets", label: "Presupuestos" },
   { table: "user_settings", label: "Ajustes" },
 ] as const;
 

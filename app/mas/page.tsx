@@ -1,11 +1,17 @@
 import Link from "next/link";
-import { Bell, ChevronRight, Download, Flame, Scale, Settings, ShieldCheck, Tags, type LucideIcon } from "lucide-react";
+import { Bell, ChevronRight, Download, Flame, Scale, Settings, ShieldCheck, Tags, Wallet, type LucideIcon } from "lucide-react";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { SignOutButton } from "./sign-out-button";
 
 const LINKS: { href: string; label: string; description: string; icon: LucideIcon }[] = [
+  {
+    href: "/finanzas",
+    label: "Finanzas",
+    description: "Cuentas, gastos, ingresos y presupuesto del mes.",
+    icon: Wallet,
+  },
   {
     href: "/habitos",
     label: "Hábitos",

@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Bell, CheckSquare, Clock, Flame, NotebookPen, Scale, Trash2 } from "lucide-react";
+import { Bell, CheckSquare, Clock, Flame, NotebookPen, Scale, Trash2, Wallet } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { CategoryPicker } from "@/components/category-picker";
+import { MoneyForm } from "@/components/finance/money-form";
 import { DayPicker } from "@/components/day-picker";
 import { runOrQueue } from "@/components/offline/run-or-queue";
 import { useSettings } from "@/components/settings-provider";
@@ -21,6 +22,7 @@ import type { QuickAddPrefill, QuickAddTab } from "./quick-add-provider";
 const TABS: { value: QuickAddTab; label: string; icon: typeof CheckSquare }[] = [
   { value: "tarea", label: "Tarea", icon: CheckSquare },
   { value: "actividad", label: "Actividad", icon: Clock },
+  { value: "dinero", label: "Dinero", icon: Wallet },
   { value: "habito", label: "Hábito", icon: Flame },
   { value: "peso", label: "Peso", icon: Scale },
   { value: "nota", label: "Nota", icon: NotebookPen },
@@ -67,7 +69,7 @@ export function QuickAddSheet({
   onClose: () => void;
   onSaved: (toast: Toast) => void;
 }) {
-  const isEditing = Boolean(prefill?.task);
+  const isEditing = Boolean(prefill?.task || prefill?.transaction);
 
   return (
     <Sheet open={prefill !== null} onClose={onClose} title={isEditing ? "Editar" : "Agregar rápido"}>
@@ -86,8 +88,9 @@ function QuickAddForm({
   onSaved: (toast: Toast) => void;
 }) {
   const task = prefill.task;
+  const transaction = prefill.transaction;
   const [tab, setTab] = useState<QuickAddTab>(
-    () => prefill.tab ?? (task ? (task.startTime ? "actividad" : "tarea") : readLastTab())
+    () => prefill.tab ?? (transaction ? "dinero" : task ? (task.startTime ? "actividad" : "tarea") : readLastTab())
   );
   const [categories, setCategories] = useState<QuickCategory[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -136,7 +139,7 @@ function QuickAddForm({
   function selectTab(next: QuickAddTab) {
     setTab(next);
     setError(null);
-    if (!task) rememberTab(next);
+    if (!task && !transaction) rememberTab(next);
     // Al cambiar entre tarea/actividad, quitar avisos que ya no aplican.
     if (reminder !== "keep" && reminder !== "none" && !reminderOptionsFor(next === "actividad").includes(reminder)) {
       setReminder("none");
@@ -203,6 +206,36 @@ function QuickAddForm({
         ? isHabitDraftValid(habitDraft)
         : simpleValue.trim().length > 0;
 
+  const tabBar = (
+    <div role="tablist" aria-label="Qué quieres agregar" className="grid grid-cols-6 gap-1 rounded-2xl bg-surface-2 p-1">
+      {TABS.map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          type="button"
+          role="tab"
+          aria-selected={tab === value}
+          onClick={() => selectTab(value)}
+          className={cn(
+            "pressable flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-semibold",
+            tab === value ? "bg-surface text-primary" : "text-muted"
+          )}
+        >
+          <Icon size={20} aria-hidden />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (tab === "dinero") {
+    return (
+      <div className="space-y-5 pt-2">
+        {!transaction && tabBar}
+        <MoneyForm transaction={transaction} onClose={onClose} onSaved={onSaved} />
+      </div>
+    );
+  }
+
   return (
     <form
       onSubmit={(e) => {
@@ -211,26 +244,7 @@ function QuickAddForm({
       }}
       className="space-y-5 pt-2"
     >
-      {!task && (
-        <div role="tablist" aria-label="Qué quieres agregar" className="grid grid-cols-5 gap-1 rounded-2xl bg-surface-2 p-1">
-          {TABS.map(({ value, label, icon: Icon }) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={tab === value}
-              onClick={() => selectTab(value)}
-              className={cn(
-                "pressable flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-xs font-semibold",
-                tab === value ? "bg-surface text-primary" : "text-muted"
-              )}
-            >
-              <Icon size={20} aria-hidden />
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+      {!task && tabBar}
 
       {(tab === "tarea" || tab === "actividad") && (
         <>
