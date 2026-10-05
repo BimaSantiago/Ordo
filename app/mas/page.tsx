@@ -1,11 +1,41 @@
 import Link from "next/link";
-import { Bell, ChevronRight, LogOut, Tags, type LucideIcon } from "lucide-react";
+import { Bell, ChevronRight, Download, Flame, Scale, Settings, ShieldCheck, Tags, type LucideIcon } from "lucide-react";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
-import { signOut } from "./actions";
+import { SignOutButton } from "./sign-out-button";
 
 const LINKS: { href: string; label: string; description: string; icon: LucideIcon }[] = [
+  {
+    href: "/habitos",
+    label: "Hábitos",
+    description: "Rachas, historial de la semana y del mes.",
+    icon: Flame,
+  },
+  {
+    href: "/peso",
+    label: "Peso y medidas",
+    description: "Tendencia del peso y medidas corporales.",
+    icon: Scale,
+  },
+  {
+    href: "/mas/ajustes",
+    label: "Ajustes",
+    description: "Kilogramos o libras, y tema claro u oscuro.",
+    icon: Settings,
+  },
+  {
+    href: "/mas/seguridad",
+    label: "Seguridad",
+    description: "Verificación en dos pasos con app autenticadora.",
+    icon: ShieldCheck,
+  },
+  {
+    href: "/mas/respaldo",
+    label: "Respaldo",
+    description: "Descarga todos tus datos en JSON o CSV.",
+    icon: Download,
+  },
   {
     href: "/materias",
     label: "Materias y actividades",
@@ -45,15 +75,7 @@ export default function MasPage() {
         </div>
       </Card>
 
-      <form action={signOut}>
-        <button
-          type="submit"
-          className="pressable flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-line bg-surface font-semibold text-danger"
-        >
-          <LogOut size={18} aria-hidden />
-          Cerrar sesión
-        </button>
-      </form>
+      <SignOutButton />
     </Page>
   );
 }

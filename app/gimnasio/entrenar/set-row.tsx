@@ -3,6 +3,8 @@
 import { Check, X } from "lucide-react";
 import { SET_TYPE_LABELS, type DraftSet, type SetType } from "@/lib/gimnasio/workout-draft";
 import { cn } from "@/lib/cn";
+import { useSettings } from "@/components/settings-provider";
+import { toInputValue, toKg } from "@/lib/units";
 
 const INPUT = "min-h-11 rounded-lg border border-line bg-surface px-1.5 text-center tabular-nums outline-none focus:border-primary";
 
@@ -15,6 +17,7 @@ export function SetRow({
   onChange: (set: DraftSet) => void;
   onRemove: () => void;
 }) {
+  const { weightUnit } = useSettings();
   return (
     <div
       className={cn(
@@ -37,10 +40,13 @@ export function SetRow({
       <input
         type="number"
         inputMode="decimal"
-        placeholder="kg"
-        aria-label="Peso en kg"
-        value={set.weightKg ?? ""}
-        onChange={(e) => onChange({ ...set, weightKg: e.target.value === "" ? null : Number(e.target.value) })}
+        placeholder={weightUnit}
+        aria-label={`Peso en ${weightUnit}`}
+        // Se captura en la unidad del usuario y se guarda en kg.
+        value={toInputValue(set.weightKg, weightUnit)}
+        onChange={(e) =>
+          onChange({ ...set, weightKg: e.target.value === "" ? null : toKg(Number(e.target.value), weightUnit) })
+        }
         className={cn(INPUT, "w-16")}
       />
       <input

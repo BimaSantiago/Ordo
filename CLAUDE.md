@@ -156,7 +156,7 @@ Todas las tablas llevan `user_id`, `created_at`, `updated_at` y **RLS activado**
 
 ## 9. Pendientes abiertos
 
-- Definir el modelo de hábitos (diarios, por días de la semana, con meta numérica) con el usuario al iniciar la fase 1.
+- ~~Definir el modelo de hábitos~~ Decidido: sí/no o meta numérica al día, todos los días o ciertos días (sin "X veces por semana").
 - Confirmar si Fitia escribe en Health Connect.
 - Decidir nombre y diseño visual de la app.
 
@@ -208,6 +208,65 @@ Patrón a seguir para las demás pantallas:
 - Las Server Actions regresan `{ ok: true } | { ok: false, error }` (`ActionResult`) para que el panel muestre errores. Las tareas viven en `app/tareas/actions.ts` (`saveTask` crea o actualiza con un **id generado en el cliente**, `toggleTask`, `deleteTask`, que revalidan `/hoy` y `/horario`). Hábito, peso y nota están en `app/hoy/actions.ts`.
 - Las piezas interactivas (`components/task-row.tsx`, `app/hoy/habit-item.tsx`) usan `useOptimistic` y `useTransition` y llaman a las Server Actions directamente; no hay store global.
 
+### Hábitos (`app/habitos/`, `components/habits/`, `lib/habits/`)
+
+- **Modelo**, que combina tipo y frecuencia:
+  - Tipo **sí/no** (`target_count` null) o **meta numérica al día** (`target_count` más `unit`, por ejemplo 8 vasos).
+  - Frecuencia **todos los días** (`frequency = 'diaria'`) o **ciertos días** (`'dias_semana'` + `frequency_days`, con 0 = domingo).
+  - `habit_logs.value` (migración 0007) guarda el valor del día: 1 para sí/no y la cuenta para los numéricos. Un log sin valor cuenta como 1.
+- **Lógica pura** en `lib/habits/streaks.ts`, con pruebas: `isDue`, `isCompleted`, `currentStreak`, `bestStreak`, `dayStatus` y `completionRate`.
+  - Los días que no tocan no rompen la racha.
+  - Hoy pendiente tampoco la rompe, hasta que termine el día.
+  - Los días anteriores a la creación del hábito (`startDate`) no cuentan como fallados.
+- `lib/habits/load.ts` (`loadHabits`) carga hábitos e historial y los deja serializables para el cliente. Se usa en Hoy y en `/habitos`.
+- **Escritura:**
+  - `setHabitLog({ habitId, localDate, value })` guarda un **valor absoluto** con la fecha del cliente; 0 borra el registro.
+  - `saveHabit`, `setHabitArchived` y `deleteHabit`.
+  - Todas pasan por `runOrQueue`.
+- **Interfaz:**
+  - Hoy muestra solo los hábitos que tocan ese día (`app/hoy/habit-item.tsx`): sí/no con un toque y numéricos con −/+ y barra de progreso, con la racha.
+  - `/habitos` muestra racha, mejor racha, porcentaje de la semana y del mes, puntos de la semana y mapa del mes. Ahí se crea y se edita en `HabitEditorSheet`.
+  - El panel "+" usa los mismos `HabitFields`.
+
+### Seguridad y respaldo
+
+- **Verificación en dos pasos (TOTP)** con Supabase Auth MFA:
+  - Se activa y desactiva en `/mas/seguridad` (`mfa-settings.tsx`, con el cliente de navegador): `enroll`, QR, `challengeAndVerify` y `unenroll`. Los factores sin verificar se limpian antes de inscribir uno nuevo.
+  - **Lo hace cumplir el proxy** (`lib/supabase/middleware.ts`): si la sesión tiene `nextLevel === "aal2"` y `currentLevel !== "aal2"`, todo redirige a `/login/verificar` (`verify-form.tsx`, que verifica solo al completar los 6 dígitos). Con la sesión ya en aal2, `/login` y `/login/verificar` redirigen a `/hoy`.
+  - Las redirecciones del proxy conservan las cookies refrescadas (`redirectPreservingCookies`).
+  - Pendiente opcional: también exigir aal2 en RLS.
+  - Recuperación si se pierde el teléfono: borrar el factor en el dashboard de Supabase.
+- **Respaldo:**
+  - `app/api/export/route.ts` responde a `GET /api/export?format=json` con todas las tablas en un archivo, o a `?format=csv&table=<tabla>`.
+  - Pagina de 1000 en 1000, que es el límite de PostgREST.
+  - De `exercises` solo exporta los ejercicios personalizados.
+  - La lista de tablas está en `lib/export/tables.ts`: **agrega ahí las tablas nuevas**.
+  - `lib/export/csv.ts`, con pruebas, sigue RFC 4180 y agrega BOM para Excel.
+  - La UI está en `/mas/respaldo`. El SW no toca `/api/`.
+
+### Ajustes: unidad de peso y tema (`app/mas/ajustes/`, `lib/settings*.ts`, `lib/units.ts`)
+
+- `user_settings` (migración 0008): `weight_unit` (kg o lb) y `theme` (system, light o dark). La base es la fuente de verdad.
+  - Se copian a la cookie `life-os-settings`, que el layout lee en cada request sin ir a la base.
+  - `getSettings()` (en `lib/settings-server.ts`, con `cache` de React) usa la cookie y, si no existe, la base.
+  - La cookie se escribe al guardar ajustes y al iniciar sesión (`writeSettingsCookie`).
+- **Tema:** el layout pone `data-theme` en `<html>` desde el servidor, así no hay parpadeo. `generateViewport` ajusta `themeColor`. En `globals.css` el bloque oscuro aplica con `@media (prefers-color-scheme: dark) :root:not([data-theme="light"])` o con `:root[data-theme="dark"]`.
+- **Unidades:** **todo se guarda en kg**. `lib/units.ts`, con pruebas, convierte solo al mostrar y al capturar:
+  - funciones `fromKg`, `toKg`, `toInputValue` (inputs con 2 decimales) y `formatWeight`;
+  - en Client Components: `useSettings()` de `components/settings-provider.tsx`;
+  - en Server Components: `await getSettings()`.
+  - Se aplica en Entrenar (inputs, referencia anterior, volumen y récords), en Progreso (`ProgressChart` recibe `unit`), en Peso, en Hoy y en el panel "+".
+  - Las medidas corporales siempre son en cm.
+
+### Peso y medidas (`app/peso/`, `lib/body/trend.ts`)
+
+- `/peso` se abre desde la tarjeta de peso de Hoy y desde Más.
+  - **Peso:** último registro, tendencia (media móvil de 7 días) y cambio de la tendencia en 30 días. Gráfica con rangos de 30 días, 90 días o todo, registro con fecha (se reemplaza si ya hay uno ese día) e historial que se puede borrar.
+  - **Medidas corporales** (`body_measurements`) en cm: por tipo (cintura, cadera… o uno libre), cada una con su gráfica.
+- `lib/body/trend.ts`, con pruebas: `movingAverage` usa **días de calendario**, no "los últimos N registros", para que pesarse diario o cada tres días dé tendencias comparables. También `lastDays` y `trendChange`.
+- `components/trend-chart.tsx`: los registros se dibujan como puntos y la tendencia como línea, con colores de los tokens CSS.
+- Acciones `deleteWeight`, `saveMeasurement` y `deleteMeasurement` en `app/peso/actions.ts`. `saveWeight` sigue en `app/hoy/actions.ts`. Todas pasan por `runOrQueue`.
+
 ### Módulos "Materias" (`app/materias/`) y "Semana" (`app/horario/`)
 
 **Actividad = tarea con hora** (`tasks.start_time`/`end_time`, migración 0005). No hay una tabla aparte.
@@ -231,6 +290,11 @@ En Materias, `category-item.tsx` edita en un `Sheet` (nombre, tipo, color de `li
 Hub en `/gimnasio` con enlaces a `/gimnasio/entrenar`, `/gimnasio/progreso`, `/gimnasio/rutinas` y `/gimnasio/ejercicios`. Ejercicios, rutinas y progreso siguen el patrón `page.tsx`/`actions.ts` ya establecido. `entrenar/` es distinto porque su estado vive primero en el navegador:
 
 - `lib/gimnasio/workout-draft.ts`: Dexie (`life-os-gimnasio`, tabla `drafts`) guarda el **entrenamiento en curso** bajo una llave fija (`draft.id = "active"`, solo puede haber uno). Esa llave **no** es el id del entrenamiento: `draft.workoutId` es el UUID que se guarda en `workouts.id`, estable entre recargas para que reintentar `finishWorkout` sea idempotente. `workout-session.tsx` (Client Component) lee/escribe ahí en cada cambio — así la sesión sobrevive a cierres de la app, recargas y pérdida de señal sin depender de Supabase mientras se entrena.
+- En Entrenar se puede:
+  - **reordenar** ejercicios con botones subir y bajar (`moveDraftExercise` y `removeDraftExercise` renumeran `position`; tienen pruebas);
+  - escribir **notas** plegables por ejercicio y por entrenamiento (`draft.notes`, `exercise.notes`);
+  - **descartar** el entrenamiento, con confirmación en dos toques.
+- En Rutinas, las series objetivo y el rango de repeticiones de cada ejercicio se editan en línea y se guardan al salir del campo (`updateRoutineExercise`). Las acciones de rutinas revalidan `/gimnasio/rutinas` con `"layout"` para incluir la página de cada rutina.
 - `lib/gimnasio/live-stats.ts`: cálculos puros (duración transcurrida, volumen, series completadas) sobre el draft, cubiertos por Vitest.
 - `app/gimnasio/entrenar/actions.ts`: `getPreviousExerciseSets` (referencia de la sesión anterior por ejercicio) y `finishWorkout` (vuelca el draft a `workouts`/`workout_exercises`/`workout_sets` con upserts en lote, detecta e inserta récords en `personal_records` y regresa `{ ok, newRecords }` o `{ ok: false, error }`). El cliente **solo borra Dexie si `ok`**; si falla, el entrenamiento sigue en pantalla para reintentar. Solo se toca Supabase al agregar ejercicios, consultar referencia o finalizar — nunca en cada tecla.
 - `lib/gimnasio/records.ts`: 1RM con Epley, valores de récord por serie y `detectNewRecords` (solo superar cuenta; un empate no). Las series de **calentamiento no cuentan** para récords ni volumen (tampoco en el volumen en vivo); al fallo y drop set sí. Los récords se calculan solo al finalizar un entrenamiento.
@@ -263,6 +327,8 @@ Migraciones SQL planas (sin CLI de Supabase todavía integrada al flujo). Cada t
 - `00000000000001_core.sql`: tablas del hito 1A (`projects`, `habits`, `habit_logs`, `tasks`, `ideas`, `notes`, `body_weight_logs`, `body_measurements`).
 - `00000000000002_gimnasio.sql`: esquema completo del hito 1B (`exercises`, `routines`, `routine_exercises`, `workouts`, `workout_exercises`, `workout_sets`, `personal_records`), creado por adelantado pero sin UI todavía.
 - `00000000000003_horario.sql`: hito 1C (`schedule_categories`, `schedule_blocks`) y columna `tasks.category_id`.
+- `00000000000008_user_settings.sql`: tabla `user_settings` (unidad de peso y tema), una fila por usuario, con RLS.
+- `00000000000007_habitos_meta.sql`: `habits.unit`, `habit_logs.value` y reglas (ciertos días con al menos un día, meta > 0).
 - `00000000000006_exercise_images.sql`: `exercises.source_id` e `image_paths` (rutas relativas de las fotos). Es **generada** por `scripts/generate-exercise-images-migration.mjs`: no se edita a mano.
 - `00000000000005_tareas_con_hora.sql`: `tasks.start_time`, `end_time` y `remind_at`, más índices por `due_date` y `remind_at`.
 - `00000000000004_seed_exercises.sql`: siembra 876 ejercicios de free-exercise-db en `exercises` con `user_id null` (biblioteca global). Nombres y grupos musculares en inglés tal cual el dataset; ver `lib/exercises.ts` para la traducción en la capa de presentación.
@@ -272,9 +338,32 @@ Al aplicar migraciones nuevas, sigue la convención de nombre `NNNNNNNNNNNNNN_de
 ### PWA
 
 - `public/manifest.json` + `public/icons/` (iconos placeholder generados a mano, sin diseño final — pendiente la sección 9 "decidir nombre y diseño visual de la app").
-- `public/sw.js`: service worker manual (sin Workbox ni `next-pwa`): cachea assets estáticos con estrategia cache-first y muestra `/offline` cuando falla una navegación sin red. Se decidió no usar `next-pwa` porque está sin mantenimiento (última versión ~2022) y su cadena de dependencias (workbox-build/rollup-plugin-terser) tiene vulnerabilidades altas reportadas por `npm audit`.
-- `components/service-worker-registration.tsx`: Client Component sin UI que registra `/sw.js` en `useEffect`; se monta desde `app/layout.tsx`.
-- Aún no hay sincronización real de IndexedDB/Dexie para escritura offline — el service worker solo cachea lecturas y la página offline. Esto sigue pendiente para cumplir el requisito de "modo sin conexión básico" del hito 1A.
+- `public/sw.js`: service worker manual, sin Workbox ni `next-pwa`. Se descartó `next-pwa` porque no tiene mantenimiento y su cadena de dependencias tiene vulnerabilidades altas en `npm audit`.
+  - Assets: cache-first en producción. En desarrollo se registra como `/sw.js?dev=1` y va primero a la red para no servir código viejo de Turbopack.
+  - Pantallas: red primero, con respaldo de la última copia (`life-os-pages-v1`) o `/offline`. Las peticiones RSC de Next no se cachean; si fallan, Next recarga la página completa y esa recarga sale del caché.
+  - Fotos de ejercicios: cache-first.
+  - "Cerrar sesión" (`app/mas/sign-out-button.tsx`) borra las pantallas guardadas, porque tienen datos personales.
+  - El SW **solo funciona en contextos seguros**: con `http://IP-local` no se registra. La lectura sin conexión se prueba en `localhost` o en el despliegue con HTTPS.
+- `components/service-worker-registration.tsx`: registra el SW. También exporta `clearCachedPages()`.
+
+### Modo sin conexión (escrituras)
+
+- **Toda escritura que deba funcionar sin señal pasa por `runOrQueue(kind, payload, label)`** (`components/offline/run-or-queue.ts`):
+  - si no hay señal o la red falla, la guarda en la cola de Dexie `life-os-outbox` (`lib/offline/outbox.ts`, con pruebas);
+  - un rechazo del servidor (`{ ok: false }`) se regresa como error y no se encola.
+- Para agregar una acción nueva hay que **registrarla en `EXECUTORS`**.
+- La acción debe ser **idempotente**:
+  - id generado con `createId()` y `upsert`;
+  - fecha local mandada por el cliente al momento de tocar (`setHabitLog`, `saveWeight`), no calculada en el servidor;
+  - valores absolutos, no incrementos.
+  - Regresa `ActionResult`.
+- `SyncProvider` (`components/offline/sync-provider.tsx`) reproduce la cola en orden (FIFO):
+  - cuándo: al abrir la app, al recuperar señal, al volver a la pestaña y cada 30 s;
+  - un error de red detiene la cola; un rechazo del servidor descarta solo ese elemento y lo muestra;
+  - después de sincronizar hace `router.refresh()`.
+- `ConnectionStatus` es el aviso de arriba ("Sin conexión · N cambios pendientes", "Sincronizando…").
+- En la interfaz usa `useLocalOverride` (`components/offline/use-local-override.ts`) en lugar de `useOptimistic`. `useOptimistic` se revierte al terminar la acción y desharía un cambio que quedó en la cola.
+- `finishWorkout` sin señal también va a la cola. Los récords se calculan cuando se sube.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

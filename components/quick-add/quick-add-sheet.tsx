@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { CategoryPicker } from "@/components/category-picker";
 import { DayPicker } from "@/components/day-picker";
-import { deleteTask, saveTask } from "@/app/tareas/actions";
-import { createHabit, saveQuickNote, saveWeight } from "@/app/hoy/actions";
+import { runOrQueue } from "@/components/offline/run-or-queue";
+import { useSettings } from "@/components/settings-provider";
+import { roundTo, toKg } from "@/lib/units";
+import { EMPTY_HABIT, HabitFields, isHabitDraftValid, type HabitDraft } from "@/components/habits/habit-fields";
 import { listActiveCategories, type QuickCategory } from "@/app/materias/actions";
 import { getLocalDateString, getLocalTimeString, minutesToTime, timeToMinutes } from "@/lib/date";
 import { computeRemindAt, REMINDER_LABELS, reminderOptionsFor, type ReminderOption } from "@/lib/reminders";
@@ -25,6 +27,7 @@ const TABS: { value: QuickAddTab; label: string; icon: typeof CheckSquare }[] = 
 ];
 
 const LAST_TAB_KEY = "life-os:quick-add-tab";
+const CATEGORIES_CACHE_KEY = "life-os:categories";
 
 function readLastTab(): QuickAddTab {
   try {
@@ -105,9 +108,27 @@ function QuickAddForm({
 
   // Hábito / peso / nota
   const [simpleValue, setSimpleValue] = useState("");
+  const [habitDraft, setHabitDraft] = useState<HabitDraft>(EMPTY_HABIT);
+  const { weightUnit } = useSettings();
 
   useEffect(() => {
-    listActiveCategories().then(setCategories).catch(() => setCategories([]));
+    // Sin señal se usa la última lista conocida para poder elegir materia igual.
+    listActiveCategories()
+      .then((list) => {
+        setCategories(list);
+        try {
+          localStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(list));
+        } catch {
+          // Sin almacenamiento: solo no habrá respaldo offline.
+        }
+      })
+      .catch(() => {
+        try {
+          setCategories(JSON.parse(localStorage.getItem(CATEGORIES_CACHE_KEY) ?? "[]"));
+        } catch {
+          setCategories([]);
+        }
+      });
   }, []);
 
   const hasTime = tab === "actividad";
@@ -128,42 +149,59 @@ function QuickAddForm({
       if (tab === "tarea" || tab === "actividad") {
         const id = task?.id ?? createId();
         const start = hasTime ? startTime : null;
-        const result = await saveTask({
-          id,
-          title,
-          dueDate,
-          categoryId,
-          startTime: start,
-          endTime: hasTime && endTime ? endTime : null,
-          remindAt: reminder === "keep" ? (task?.remindAt ?? null) : computeRemindAt(reminder, dueDate, start),
-        });
-        if (!result.ok) return setError(result.error);
+        const run = await runOrQueue(
+          "saveTask",
+          {
+            id,
+            title,
+            dueDate,
+            categoryId,
+            startTime: start,
+            endTime: hasTime && endTime ? endTime : null,
+            remindAt: reminder === "keep" ? (task?.remindAt ?? null) : computeRemindAt(reminder, dueDate, start),
+          },
+          title.trim()
+        );
+        if (run.status === "error") return setError(run.error);
         onClose();
+        if (run.status === "queued") return onSaved({ message: "Sin señal: se guardará al reconectar" });
         onSaved(
           task
             ? { message: "Cambios guardados" }
             : {
                 message: hasTime ? "Actividad agregada" : "Tarea agregada",
-                undo: () => void deleteTask(id),
+                undo: () => void runOrQueue("deleteTask", { taskId: id }, `Deshacer "${title.trim()}"`),
               }
         );
         return;
       }
 
-      const result =
+      const run =
         tab === "habito"
-          ? await createHabit(simpleValue)
+          ? await runOrQueue("saveHabit", { ...habitDraft, id: createId() }, `Hábito "${habitDraft.name.trim()}"`)
           : tab === "peso"
-            ? await saveWeight(Number(simpleValue.replace(",", ".")))
-            : await saveQuickNote(simpleValue);
-      if (!result.ok) return setError(result.error);
+            ? await runOrQueue(
+                "saveWeight",
+                {
+                  localDate: getLocalDateString(),
+                  weightKg: roundTo(toKg(Number(simpleValue.replace(",", ".")), weightUnit), 2),
+                },
+                `Peso ${simpleValue} ${weightUnit}`
+              )
+            : await runOrQueue("saveQuickNote", { id: createId(), body: simpleValue }, "Nota rápida");
+      if (run.status === "error") return setError(run.error);
       onClose();
+      if (run.status === "queued") return onSaved({ message: "Sin señal: se guardará al reconectar" });
       onSaved({ message: tab === "habito" ? "Hábito creado" : tab === "peso" ? "Peso guardado" : "Nota guardada" });
     });
   }
 
   const canSubmit =
-    tab === "tarea" || tab === "actividad" ? title.trim().length > 0 && (!hasTime || Boolean(startTime)) : simpleValue.trim().length > 0;
+    tab === "tarea" || tab === "actividad"
+      ? title.trim().length > 0 && (!hasTime || Boolean(startTime))
+      : tab === "habito"
+        ? isHabitDraftValid(habitDraft)
+        : simpleValue.trim().length > 0;
 
   return (
     <form
@@ -283,11 +321,11 @@ function QuickAddForm({
       )}
 
       {tab === "habito" && (
-        <SimpleInput label="Nuevo hábito" placeholder="p. ej. Leer 20 minutos" value={simpleValue} onChange={setSimpleValue} />
+        <HabitFields value={habitDraft} onChange={setHabitDraft} autoFocus />
       )}
       {tab === "peso" && (
         <SimpleInput
-          label="Peso de hoy (kg)"
+          label={`Peso de hoy (${weightUnit})`}
           placeholder="72.5"
           inputMode="decimal"
           value={simpleValue}
@@ -312,10 +350,10 @@ function QuickAddForm({
             onClick={() => {
               if (!confirmDelete) return setConfirmDelete(true);
               startTransition(async () => {
-                const result = await deleteTask(task.id);
-                if (!result.ok) return setError(result.error);
+                const run = await runOrQueue("deleteTask", { taskId: task.id }, `Eliminar "${task.title}"`);
+                if (run.status === "error") return setError(run.error);
                 onClose();
-                onSaved({ message: "Eliminada" });
+                onSaved({ message: run.status === "queued" ? "Sin señal: se eliminará al reconectar" : "Eliminada" });
               });
             }}
             className="min-h-12"

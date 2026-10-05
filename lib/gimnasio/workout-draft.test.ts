@@ -5,6 +5,8 @@ import {
   createDraftExercise,
   createDraftSet,
   getActiveDraft,
+  moveDraftExercise,
+  removeDraftExercise,
   saveActiveDraft,
   type WorkoutDraft,
 } from "./workout-draft";
@@ -69,6 +71,29 @@ describe("workout-draft", () => {
     delete legacy.workoutId;
     await saveActiveDraft(legacy as WorkoutDraft);
     expect((await getActiveDraft())?.workoutId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("reordena ejercicios y renumera posiciones; los extremos no se mueven", () => {
+    const a = createDraftExercise("ex-a", "A", 0);
+    const b = createDraftExercise("ex-b", "B", 1);
+    const c = createDraftExercise("ex-c", "C", 2);
+
+    const moved = moveDraftExercise([a, b, c], c.id, "up");
+    expect(moved.map((e) => e.exerciseName)).toEqual(["A", "C", "B"]);
+    expect(moved.map((e) => e.position)).toEqual([0, 1, 2]);
+
+    expect(moveDraftExercise([a, b, c], a.id, "up").map((e) => e.exerciseName)).toEqual(["A", "B", "C"]);
+    expect(moveDraftExercise([a, b, c], c.id, "down").map((e) => e.exerciseName)).toEqual(["A", "B", "C"]);
+  });
+
+  it("al quitar un ejercicio no quedan huecos en las posiciones", () => {
+    const a = createDraftExercise("ex-a", "A", 0);
+    const b = createDraftExercise("ex-b", "B", 1);
+    const c = createDraftExercise("ex-c", "C", 2);
+    expect(removeDraftExercise([a, b, c], b.id).map((e) => [e.exerciseName, e.position])).toEqual([
+      ["A", 0],
+      ["C", 1],
+    ]);
   });
 
   it("limpia el draft al finalizar el entrenamiento", async () => {

@@ -28,17 +28,35 @@ export async function updateSession(request: NextRequest) {
   );
 
   const { data } = await supabase.auth.getUser();
-  const isPublicPath = PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
+  const pathname = request.nextUrl.pathname;
+  const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 
   if (!data.user && !isPublicPath) {
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+    return redirectPreservingCookies(request, response, "/login");
   }
 
-  if (data.user && request.nextUrl.pathname === "/login") {
-    const homeUrl = new URL("/hoy", request.url);
-    return NextResponse.redirect(homeUrl);
+  if (data.user) {
+    // Verificación en dos pasos: si el usuario tiene un factor TOTP (nextLevel aal2) y esta
+    // sesión solo pasó la contraseña (aal1), nada de la app es accesible hasta poner el código.
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    const needsMfa = aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2";
+
+    if (needsMfa && pathname !== MFA_PATH && !pathname.startsWith("/offline")) {
+      return redirectPreservingCookies(request, response, MFA_PATH);
+    }
+    if (!needsMfa && (pathname === "/login" || pathname === MFA_PATH)) {
+      return redirectPreservingCookies(request, response, "/hoy");
+    }
   }
 
   return response;
+}
+
+const MFA_PATH = "/login/verificar";
+
+/** Redirige conservando las cookies que Supabase haya refrescado en esta misma petición. */
+function redirectPreservingCookies(request: NextRequest, response: NextResponse, path: string) {
+  const redirect = NextResponse.redirect(new URL(path, request.url));
+  for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
+  return redirect;
 }

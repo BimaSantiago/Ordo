@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ExerciseSessionPoint } from "@/lib/gimnasio/progress";
+import { fromKg, roundTo, type WeightUnit } from "@/lib/units";
 
 type Metric = "maxWeightKg" | "bestOneRepMax" | "volumeKg";
 
@@ -24,7 +25,16 @@ function toTime(localDate: string): number {
 
 const dateLabel = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", timeZone: "UTC" });
 
-export function ProgressChart({ points, bodyWeight }: { points: ExerciseSessionPoint[]; bodyWeight: BodyWeightPoint[] }) {
+export function ProgressChart({
+  points,
+  bodyWeight,
+  unit = "kg",
+}: {
+  points: ExerciseSessionPoint[];
+  bodyWeight: BodyWeightPoint[];
+  // Los datos llegan en kg; se grafican en la unidad del usuario.
+  unit?: WeightUnit;
+}) {
   const [metric, setMetric] = useState<Metric>("bestOneRepMax");
   const [showBodyWeight, setShowBodyWeight] = useState(bodyWeight.length > 0);
 
@@ -32,16 +42,16 @@ export function ProgressChart({ points, bodyWeight }: { points: ExerciseSessionP
     const rows = new Map<number, ChartRow>();
     for (const point of points) {
       const t = toTime(point.localDate);
-      rows.set(t, { ...rows.get(t), t, lift: point[metric] });
+      rows.set(t, { ...rows.get(t), t, lift: roundTo(fromKg(point[metric], unit), 1) });
     }
     if (showBodyWeight) {
       for (const entry of bodyWeight) {
         const t = toTime(entry.localDate);
-        rows.set(t, { ...rows.get(t), t, body: entry.weightKg });
+        rows.set(t, { ...rows.get(t), t, body: roundTo(fromKg(entry.weightKg, unit), 1) });
       }
     }
     return [...rows.values()].sort((a, b) => a.t - b.t);
-  }, [points, bodyWeight, metric, showBodyWeight]);
+  }, [points, bodyWeight, metric, showBodyWeight, unit]);
 
   if (points.length === 0) {
     return <p className="text-sm text-muted">Aún no hay series con peso para graficar.</p>;
@@ -82,7 +92,7 @@ export function ProgressChart({ points, bodyWeight }: { points: ExerciseSessionP
             )}
             <Tooltip
               labelFormatter={(t) => dateLabel.format(Number(t))}
-              formatter={(value, name) => [`${Number(value).toLocaleString("es-MX")} kg`, name]}
+              formatter={(value, name) => [`${Number(value).toLocaleString("es-MX")} ${unit}`, name]}
             />
             <Line
               yAxisId="lift"
