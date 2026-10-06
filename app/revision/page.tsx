@@ -70,7 +70,7 @@ export default async function RevisionPage({ searchParams }: { searchParams: Pro
     loadTransactions(supabase, from, to),
     supabase.from("projects").select("id, name, next_steps").eq("status", "activo").order("updated_at", { ascending: false }),
     supabase.from("ideas").select("id", { count: "exact", head: true }).is("project_id", null),
-    supabase.from("weekly_reviews").select("id, wins, lessons, next_focus").eq("week_start", weekStart).maybeSingle(),
+    supabase.from("weekly_reviews").select("wins, lessons, next_focus").eq("week_start", weekStart).maybeSingle(),
   ]);
 
   const taskRows = (tasksRes.data ?? []).map((row) => ({
@@ -109,7 +109,7 @@ export default async function RevisionPage({ searchParams }: { searchParams: Pro
   const projects = projectsRes.data ?? [];
   const projectsWithoutStep = projects.filter((p) => !p.next_steps?.trim()).length;
   const review = reviewRes.data
-    ? { id: reviewRes.data.id, wins: reviewRes.data.wins ?? "", lessons: reviewRes.data.lessons ?? "", nextFocus: reviewRes.data.next_focus ?? "" }
+    ? { wins: reviewRes.data.wins ?? "", lessons: reviewRes.data.lessons ?? "", nextFocus: reviewRes.data.next_focus ?? "" }
     : null;
 
   return (

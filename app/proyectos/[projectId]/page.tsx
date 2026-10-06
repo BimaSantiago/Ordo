@@ -78,11 +78,11 @@ export default async function ProyectoPage({ params }: { params: Promise<{ proje
         {tasks.length === 0 ? (
           <Card className="px-4 py-4 text-sm text-muted">Agrega tareas con fecha para que aparezcan también en Hoy.</Card>
         ) : (
-          <Card className="divide-y divide-line">
+          <div className="space-y-2">
             {[...pending, ...done].map((task) => (
               <TaskRow key={task.id} task={task} />
             ))}
-          </Card>
+          </div>
         )}
       </section>
 

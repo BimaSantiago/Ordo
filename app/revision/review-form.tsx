@@ -3,14 +3,11 @@
 import { useRef, useState, useTransition } from "react";
 import { Check, CloudOff } from "lucide-react";
 import { runOrQueue } from "@/components/offline/run-or-queue";
-import { createId } from "@/lib/uuid";
 import { cn } from "@/lib/cn";
 
-export type WeeklyReview = { id: string; wins: string; lessons: string; nextFocus: string };
+export type WeeklyReview = { wins: string; lessons: string; nextFocus: string };
 
-type Fields = Omit<WeeklyReview, "id">;
-
-const PROMPTS: { key: keyof Fields; label: string; placeholder: string }[] = [
+const PROMPTS: { key: keyof WeeklyReview; label: string; placeholder: string }[] = [
   { key: "wins", label: "¿Qué salió bien?", placeholder: "Logros, avances, cosas de las que estás orgulloso..." },
   { key: "lessons", label: "¿Qué no salió y qué aprendiste?", placeholder: "Qué te detuvo y qué harías distinto..." },
   { key: "nextFocus", label: "Enfoque de la semana que viene", placeholder: "Las 1 a 3 cosas que más importan..." },
@@ -20,10 +17,9 @@ type Status = "idle" | "saving" | "saved" | "queued" | { error: string };
 
 /** Reflexión de la semana: se guarda sola al salir de cada campo (también sin señal). */
 export function ReviewForm({ weekStart, review }: { weekStart: string; review: WeeklyReview | null }) {
-  const initial: Fields = { wins: review?.wins ?? "", lessons: review?.lessons ?? "", nextFocus: review?.nextFocus ?? "" };
-  const [id] = useState(() => review?.id ?? createId());
-  const saved = useRef<Fields>(initial);
-  const [fields, setFields] = useState<Fields>(initial);
+  const initial: WeeklyReview = { wins: review?.wins ?? "", lessons: review?.lessons ?? "", nextFocus: review?.nextFocus ?? "" };
+  const saved = useRef<WeeklyReview>(initial);
+  const [fields, setFields] = useState<WeeklyReview>(initial);
   const [status, setStatus] = useState<Status>("idle");
   const [, startTransition] = useTransition();
 
@@ -33,7 +29,7 @@ export function ReviewForm({ weekStart, review }: { weekStart: string; review: W
     if (unchanged) return;
     setStatus("saving");
     startTransition(async () => {
-      const result = await runOrQueue("saveWeeklyReview", { id, weekStart, ...current }, "Revisión semanal");
+      const result = await runOrQueue("saveWeeklyReview", { weekStart, ...current }, "Revisión semanal");
       if (result.status === "error") return setStatus({ error: result.error });
       saved.current = current;
       setStatus(result.status === "queued" ? "queued" : "saved");
