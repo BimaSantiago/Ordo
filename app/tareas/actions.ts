@@ -19,6 +19,8 @@ export type TaskInput = {
   startTime: string | null;
   endTime: string | null;
   remindAt: string | null;
+  /** Proyecto al que pertenece. Si no se manda (undefined), se conserva el que ya tenía. */
+  projectId?: string | null;
 };
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -40,6 +42,7 @@ function validate(input: TaskInput): string | null {
 function revalidateTaskViews() {
   revalidatePath("/hoy");
   revalidatePath("/horario");
+  revalidatePath("/proyectos", "layout");
 }
 
 /** Crea o actualiza (mismo id) una tarea; con `startTime` es una "actividad" en la tabla semanal. */
@@ -57,6 +60,7 @@ export async function saveTask(input: TaskInput): Promise<ActionResult> {
     start_time: input.startTime,
     end_time: input.startTime ? input.endTime : null,
     remind_at: input.remindAt,
+    ...(input.projectId !== undefined && { project_id: input.projectId }),
   });
   if (dbError) return { ok: false, error: dbError.message };
 

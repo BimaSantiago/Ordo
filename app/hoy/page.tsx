@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, CheckSquare, ChevronRight, Clock, Flame, Plus, Scale, Wallet } from "lucide-react";
+import { CalendarCheck, CalendarClock, CheckSquare, ChevronRight, Clock, Flame, Plus, Scale, Wallet } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { addDaysToLocalDate, formatDisplayDate, formatShortDate, getLocalDateString, getLocalDayOfWeek } from "@/lib/date";
 import { Page } from "@/components/ui/page";
@@ -13,6 +13,7 @@ import { getSettings } from "@/lib/settings-server";
 import { formatWeight } from "@/lib/units";
 import { formatMoney } from "@/lib/finance/money";
 import { currentStreak, isCompleted, isDue } from "@/lib/habits/streaks";
+import { reviewWeekFor } from "@/lib/review/week";
 
 type Category = { name: string; color: string } | { name: string; color: string }[] | null;
 
@@ -36,8 +37,10 @@ export default async function HoyPage() {
   const { weightUnit } = await getSettings();
   const localDate = getLocalDateString();
   const dayOfWeek = getLocalDayOfWeek(localDate);
+  // Domingo (semana en curso) y lunes (la que acaba de terminar): recordar la revisión semanal.
+  const reviewWeek = dayOfWeek === 0 || dayOfWeek === 1 ? reviewWeekFor(localDate) : null;
 
-  const [tasksRes, habits, weightRes, blocksRes, expensesRes] = await Promise.all([
+  const [tasksRes, habits, weightRes, blocksRes, expensesRes, reviewRes] = await Promise.all([
     supabase
       .from("tasks")
       .select("id, title, status, due_date, category_id, start_time, end_time, remind_at, schedule_categories(name, color)")
@@ -66,6 +69,9 @@ export default async function HoyPage() {
       .eq("kind", "gasto")
       .gte("local_date", `${localDate.slice(0, 7)}-01`)
       .lte("local_date", localDate),
+    reviewWeek
+      ? supabase.from("weekly_reviews").select("id").eq("week_start", reviewWeek).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const tasks: TaskRowData[] = (tasksRes.data ?? []).map((row) => {
@@ -167,6 +173,20 @@ export default async function HoyPage() {
         </span>
         <ChevronRight size={16} className="text-muted" aria-hidden />
       </Link>
+
+      {reviewWeek && !reviewRes.data && (
+        <Link
+          href={`/revision?semana=${reviewWeek}`}
+          className="pressable flex min-h-14 items-center gap-3 rounded-2xl border border-primary/40 bg-primary-soft px-3 py-2 text-sm"
+        >
+          <CalendarCheck size={20} className="shrink-0 text-primary" aria-hidden />
+          <span className="flex-1">
+            <span className="block font-semibold text-primary">Haz tu revisión semanal</span>
+            <span className="block text-muted">Cinco minutos para cerrar la semana y decidir la siguiente.</span>
+          </span>
+          <ChevronRight size={16} className="text-primary" aria-hidden />
+        </Link>
+      )}
 
       <section className="space-y-2">
         <SectionTitle

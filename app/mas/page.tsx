@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, ChevronRight, Download, Flame, Scale, Settings, ShieldCheck, Tags, Wallet, type LucideIcon } from "lucide-react";
+import { Bell, CalendarCheck, ChevronRight, Download, Flame, FolderKanban, Scale, Settings, ShieldCheck, StickyNote, Tags, Wallet, type LucideIcon } from "lucide-react";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -11,6 +11,24 @@ const LINKS: { href: string; label: string; description: string; icon: LucideIco
     label: "Finanzas",
     description: "Cuentas, gastos, ingresos y presupuesto del mes.",
     icon: Wallet,
+  },
+  {
+    href: "/revision",
+    label: "Revisión semanal",
+    description: "Resumen de la semana, pendientes y reflexión del domingo.",
+    icon: CalendarCheck,
+  },
+  {
+    href: "/proyectos",
+    label: "Proyectos",
+    description: "Estado, próximos pasos y tareas de cada proyecto.",
+    icon: FolderKanban,
+  },
+  {
+    href: "/notas",
+    label: "Notas e ideas",
+    description: "Notas importantes fijadas e ideas para después.",
+    icon: StickyNote,
   },
   {
     href: "/habitos",

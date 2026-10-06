@@ -324,6 +324,20 @@ Hub en `/gimnasio` con enlaces a `/gimnasio/entrenar`, `/gimnasio/progreso`, `/g
 - **Captura:** pestaña "Dinero" del panel "+" (`components/finance/money-form.tsx`). Recuerda la última cuenta y cachea cuentas y categorías en `localStorage` para usarse sin señal. `saveTransaction` y `deleteTransaction` pasan por `runOrQueue`; cuentas, categorías y presupuestos se editan con señal.
 - **Pantallas:** `/finanzas?mes=YYYY-MM` (resumen, saldos, presupuesto, gasto por categoría, gráfica de 6 meses `MonthlyChart`, movimientos por día; tocar uno abre el panel con `prefill.transaction`), `/finanzas/cuentas` y `/finanzas/categorias` (límites). Tarjeta "Gastado hoy · mes" en Hoy.
 
+### Proyectos, notas e ideas (`app/proyectos/`, `app/notas/`)
+
+- `/proyectos`: lista por estado (activo, pausado, terminado, archivado) con el primer próximo paso y las tareas pendientes. `/proyectos/[projectId]` edita en línea (nombre, estado, próximos pasos y descripción se guardan al salir del campo con `saveProject`, que solo cambia los campos que recibe) y muestra sus tareas, notas e ideas. "+ Tarea" abre el panel rápido con `prefill.projectId`; `saveTask` conserva el `project_id` si no se manda.
+- Borrar un proyecto deja sus tareas, notas e ideas sin proyecto (`on delete set null`). Proyectos se editan con señal; no pasan por la cola.
+- `/notas` (pestañas Notas e Ideas, `?tab=ideas`): notas con título opcional, **fijadas** primero (`notes.pinned`, migración 0010) y proyecto opcional; las notas rápidas del "+" (`saveQuickNote`) también aparecen aquí. Las ideas se pueden **convertir en proyecto** (`promoteIdea`, idempotente: si la idea ya tiene proyecto no hace nada).
+- `saveNote`, `setNotePinned`, `deleteNote`, `saveIdea`, `deleteIdea` y `promoteIdea` pasan por `runOrQueue`.
+
+### Revisión semanal (`app/revision/`, `lib/review/week.ts`)
+
+- `/revision?semana=YYYY-MM-DD` (cualquier fecha se lleva a su lunes; no deja ir a semanas futuras). Resume la semana con helpers ya existentes: tareas completadas (por `completed_at` en fecha local), cumplimiento de hábitos (`completionRate`), entrenamientos y volumen (`summarizeWorkouts`), cambio de la tendencia de peso, gasto e ingreso (`summarize`), proyectos activos sin próximo paso e ideas sin convertir. Lista las tareas pendientes con fecha hasta el domingo para limpiarlas ahí mismo con `TaskRow`.
+- Lógica pura con pruebas en `lib/review/week.ts`: `weekRange`, `resolveWeekStart`, `reviewWeekFor` (el domingo es la semana en curso; de lunes a sábado, la anterior), `taskStats`, `habitStats` y `weeklyWeightChange`.
+- Reflexión en `weekly_reviews` (migración 0011, una fila por `(user_id, week_start)`, `week_start` siempre lunes): logros, aprendizajes y enfoque de la semana siguiente. `review-form.tsx` guarda al salir de cada campo con `saveWeeklyReview` (upsert por semana, pasa por `runOrQueue`).
+- Hoy muestra "Haz tu revisión semanal" el domingo y el lunes mientras no exista la fila de esa semana. También hay enlace en Más.
+
 ### Ids en el cliente y pruebas desde el celular
 
 - Usa siempre `createId()` de `lib/uuid.ts` en código que corre en el navegador, **nunca `crypto.randomUUID()`**. `randomUUID` solo existe en contextos seguros (HTTPS o localhost). Al abrir la app desde el celular por `http://<IP-de-la-PC>:3000` no existe, y guardar un bloque, una tarea o una serie fallaba. En las Server Actions (Node) sí se puede usar `randomUUID` de `crypto`.
@@ -345,6 +359,8 @@ Migraciones SQL planas (sin CLI de Supabase todavía integrada al flujo). Cada t
 - `00000000000006_exercise_images.sql`: `exercises.source_id` e `image_paths` (rutas relativas de las fotos). Es **generada** por `scripts/generate-exercise-images-migration.mjs`: no se edita a mano.
 - `00000000000005_tareas_con_hora.sql`: `tasks.start_time`, `end_time` y `remind_at`, más índices por `due_date` y `remind_at`.
 - `00000000000009_finanzas.sql`: finanzas (cuentas, categorías, movimientos, presupuestos y vista de saldos).
+- `00000000000010_notas_fijadas.sql`: `notes.pinned` e índices de notas, ideas y tareas por proyecto.
+- `00000000000011_revision_semanal.sql`: tabla `weekly_reviews` (reflexión semanal).
 - `00000000000004_seed_exercises.sql`: siembra 876 ejercicios de free-exercise-db en `exercises` con `user_id null` (biblioteca global). Nombres y grupos musculares en inglés tal cual el dataset; ver `lib/exercises.ts` para la traducción en la capa de presentación.
 
 Al aplicar migraciones nuevas, sigue la convención de nombre `NNNNNNNNNNNNNN_descripcion.sql` (timestamp o número secuencial) para que se ejecuten en orden.

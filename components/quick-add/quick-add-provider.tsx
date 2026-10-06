@@ -22,6 +22,8 @@ export type QuickAddPrefill = {
   dueDate?: string;
   startTime?: string;
   categoryId?: string | null;
+  /** Proyecto para la tarea nueva (desde la página del proyecto). */
+  projectId?: string;
   task?: EditableTask;
   /** Movimiento de dinero a editar o eliminar (abre la pestaña Dinero). */
   transaction?: EditableTransaction;

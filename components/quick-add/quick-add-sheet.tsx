@@ -162,6 +162,7 @@ function QuickAddForm({
             startTime: start,
             endTime: hasTime && endTime ? endTime : null,
             remindAt: reminder === "keep" ? (task?.remindAt ?? null) : computeRemindAt(reminder, dueDate, start),
+            ...(!task && prefill.projectId && { projectId: prefill.projectId }),
           },
           title.trim()
         );
