@@ -2,8 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { QuickAddSheet } from "./quick-add-sheet";
+import type { EditableTransaction } from "@/components/finance/money-form";
 
-export type QuickAddTab = "tarea" | "actividad" | "habito" | "peso" | "nota";
+export type QuickAddTab = "tarea" | "actividad" | "dinero" | "habito" | "peso" | "nota";
 
 export type EditableTask = {
   id: string;
@@ -21,7 +22,11 @@ export type QuickAddPrefill = {
   dueDate?: string;
   startTime?: string;
   categoryId?: string | null;
+  /** Proyecto para la tarea nueva (desde la página del proyecto). */
+  projectId?: string;
   task?: EditableTask;
+  /** Movimiento de dinero a editar o eliminar (abre la pestaña Dinero). */
+  transaction?: EditableTransaction;
 };
 
 type Toast = { message: string; undo?: () => void };

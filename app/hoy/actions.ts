@@ -135,5 +135,6 @@ export async function saveQuickNote(input: { id: string; body: string }): Promis
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/hoy");
+  revalidatePath("/notas");
   return { ok: true };
 }

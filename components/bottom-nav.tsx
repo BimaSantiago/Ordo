@@ -25,7 +25,7 @@ export function BottomNav() {
   const isActive = (href: string) =>
     pathname === href ||
     pathname.startsWith(`${href}/`) ||
-    (href === "/mas" && pathname.startsWith("/materias")) ||
+    (href === "/mas" && ["/materias", "/finanzas", "/proyectos", "/notas", "/revision", "/comida"].some((path) => pathname.startsWith(path))) ||
     (href === "/hoy" && (pathname.startsWith("/habitos") || pathname.startsWith("/peso")));
 
   const renderItem = ({ href, label, icon: Icon }: (typeof ITEMS)[number]) => {

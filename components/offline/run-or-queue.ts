@@ -14,6 +14,9 @@ import { deleteBlock, saveBlock } from "@/app/horario/actions";
 import { createCategoryQuick } from "@/app/materias/actions";
 import { deleteMeasurement, deleteWeight, saveMeasurement } from "@/app/peso/actions";
 import { finishWorkout } from "@/app/gimnasio/entrenar/actions";
+import { deleteTransaction, saveTransaction } from "@/app/finanzas/actions";
+import { deleteIdea, deleteNote, promoteIdea, saveIdea, saveNote, setNotePinned } from "@/app/notas/actions";
+import { saveWeeklyReview } from "@/app/revision/actions";
 import { enqueue, flushOutbox, type ActionResult } from "@/lib/offline/outbox";
 
 /**
@@ -38,6 +41,15 @@ const EXECUTORS = {
   deleteBlock: (p: { blockId: string }) => deleteBlock(p.blockId),
   createCategoryQuick,
   finishWorkout,
+  saveTransaction,
+  deleteTransaction,
+  saveNote,
+  setNotePinned,
+  deleteNote,
+  saveIdea,
+  deleteIdea,
+  promoteIdea,
+  saveWeeklyReview,
 } satisfies Record<string, (payload: never) => Promise<ActionResult>>;
 
 export type OfflineKind = keyof typeof EXECUTORS;
