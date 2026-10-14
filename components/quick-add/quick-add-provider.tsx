@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { QuickAddSheet } from "./quick-add-sheet";
 import type { EditableTransaction } from "@/components/finance/money-form";
 
-export type QuickAddTab = "tarea" | "actividad" | "dinero" | "habito" | "peso" | "nota";
+export type QuickAddTab = "tarea" | "actividad" | "dinero" | "habito" | "peso" | "comida" | "nota";
 
 export type EditableTask = {
   id: string;
@@ -27,6 +27,8 @@ export type QuickAddPrefill = {
   task?: EditableTask;
   /** Movimiento de dinero a editar o eliminar (abre la pestaña Dinero). */
   transaction?: EditableTransaction;
+  /** Fecha de los totales de comida a capturar o corregir (abre la pestaña Comida). */
+  nutritionDate?: string;
 };
 
 type Toast = { message: string; undo?: () => void };

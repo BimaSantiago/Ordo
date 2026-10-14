@@ -199,7 +199,7 @@ Este proyecto usa **Next.js 16**, que reemplazó la convención `middleware.ts` 
 - Base móvil en `globals.css`: sin destello al tocar, `overscroll-behavior: none`, inputs de 16px (evita el zoom de iOS), clase `.pressable` para dar respuesta al presionar. `viewport` con `viewportFit: "cover"` y `themeColor` por esquema; las barras fijas usan `env(safe-area-inset-*)`.
 - Primitivas en `components/ui/`: `Page` (contenedor con espacio para la barra inferior; `wide` para la tabla semanal), `PageHeader` (título y enlace de regreso), `Card`/`SectionTitle`, `Button`, `IconButton`, `Chip` y `Sheet` (panel inferior sobre `<dialog>` nativo, con foco atrapado y cierre con Esc/atrás).
 - `components/bottom-nav.tsx`: barra inferior (Hoy, Semana, **+**, Gimnasio, Más), montada una vez en `app/layout.tsx` y oculta en `/login` y `/offline`. `/mas` agrupa Materias, Recordatorios y Cerrar sesión (`signOut` vive en `app/mas/actions.ts`).
-- **Panel rápido** (`components/quick-add/`): `QuickAddProvider` en el layout expone `useQuickAdd().open(prefill)` y `showToast`. Pestañas: Tarea, Actividad, Dinero, Hábito, Peso y Nota. `prefill` permite abrirlo con día, hora, materia o una tarea existente (`task`, para editarla o eliminarla). Desde Server Components se abre con `QuickAddButton`.
+- **Panel rápido** (`components/quick-add/`): `QuickAddProvider` en el layout expone `useQuickAdd().open(prefill)` y `showToast`. Pestañas: Tarea, Actividad, Dinero, Hábito, Peso, Comida y Nota. `prefill` permite abrirlo con día, hora, materia, una tarea existente (`task`, para editarla o eliminarla) o la fecha de los totales de comida (`nutritionDate`). Desde Server Components se abre con `QuickAddButton`.
 
 ### Módulo "Hoy" (`app/hoy/`)
 
@@ -331,6 +331,15 @@ Hub en `/gimnasio` con enlaces a `/gimnasio/entrenar`, `/gimnasio/progreso`, `/g
 - `/notas` (pestañas Notas e Ideas, `?tab=ideas`): notas con título opcional, **fijadas** primero (`notes.pinned`, migración 0010) y proyecto opcional; las notas rápidas del "+" (`saveQuickNote`) también aparecen aquí. Las ideas se pueden **convertir en proyecto** (`promoteIdea`, idempotente: si la idea ya tiene proyecto no hace nada).
 - `saveNote`, `setNotePinned`, `deleteNote`, `saveIdea`, `deleteIdea` y `promoteIdea` pasan por `runOrQueue`.
 
+### Comida (`app/comida/`, `components/nutrition/`, `lib/nutrition/`)
+
+- **Camino A:** la comida se registra en Fitia; aquí solo se guardan los **totales del día**. `nutrition_daily` (migración 0012) tiene una fila por `(user_id, local_date)` con `kcal`, `protein_g`, `carbs_g` y `fat_g` (cualquiera puede faltar, pero no todos) y `source` (`manual`; `fitia` queda para una lectura automática vía Health Connect).
+- Metas diarias opcionales en `user_settings` (`kcal_goal`, `protein_goal_g`, `carbs_goal_g`, `fat_goal_g`). Se editan en `/comida` con señal (`saveNutritionGoals`).
+- **Captura:** pestaña "Comida" del panel "+" (`components/nutrition/nutrition-form.tsx`): hoy o ayer, precarga lo guardado ese día con `getNutritionDay` (si hay señal) y guardar **reemplaza** el día. `saveNutrition` (upsert por fecha, valores absolutos) y `deleteNutrition` pasan por `runOrQueue`.
+- **Lógica pura con pruebas** en `lib/nutrition/summary.ts`: `parseQuantity` ("1,850" = 1850; "140,5" = 140.5), `macroKcal` (4/4/9), `goalPercent`, `kcalStatus` (±10% = en meta), `averagesBetween`/`averagesLastDays` (un día sin registro no cuenta como cero) y `nutritionWeightSeries` (une comida y tendencia del peso en una sola línea de tiempo).
+- `/comida`: avance de hoy contra la meta, promedios de 7 y 30 días, gráfica `NutritionChart` (barras de calorías o proteína con la meta punteada y la tendencia del peso en el eje derecho, en la unidad del usuario), metas e historial (tocar un día abre el panel para corregirlo).
+- Hoy muestra una tarjeta con las calorías del día (contra la meta) y la proteína, que lleva a `/comida`. También hay enlace en Más.
+
 ### Revisión semanal (`app/revision/`, `lib/review/week.ts`)
 
 - `/revision?semana=YYYY-MM-DD` (cualquier fecha se lleva a su lunes; no deja ir a semanas futuras). Resume la semana con helpers ya existentes: tareas completadas (por `completed_at` en fecha local), cumplimiento de hábitos (`completionRate`), entrenamientos y volumen (`summarizeWorkouts`), cambio de la tendencia de peso, gasto e ingreso (`summarize`), proyectos activos sin próximo paso e ideas sin convertir. Lista las tareas pendientes con fecha hasta el domingo para limpiarlas ahí mismo con `TaskRow`.
@@ -361,6 +370,7 @@ Migraciones SQL planas (sin CLI de Supabase todavía integrada al flujo). Cada t
 - `00000000000009_finanzas.sql`: finanzas (cuentas, categorías, movimientos, presupuestos y vista de saldos).
 - `00000000000010_notas_fijadas.sql`: `notes.pinned` e índices de notas, ideas y tareas por proyecto.
 - `00000000000011_revision_semanal.sql`: tabla `weekly_reviews` (reflexión semanal).
+- `00000000000012_comida.sql`: tabla `nutrition_daily` (totales diarios de comida) y metas diarias en `user_settings`.
 - `00000000000004_seed_exercises.sql`: siembra 876 ejercicios de free-exercise-db en `exercises` con `user_id null` (biblioteca global). Nombres y grupos musculares en inglés tal cual el dataset; ver `lib/exercises.ts` para la traducción en la capa de presentación.
 
 Al aplicar migraciones nuevas, sigue la convención de nombre `NNNNNNNNNNNNNN_descripcion.sql` (timestamp o número secuencial) para que se ejecuten en orden.

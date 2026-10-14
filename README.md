@@ -45,6 +45,8 @@ O bien copia y ejecuta el contenido de cada archivo, en orden, desde el SQL Edit
 
 `00000000000005_tareas_con_hora.sql` agrega `start_time`, `end_time` y `remind_at` a `tasks`. Una tarea con hora es una "actividad" y se dibuja en su hora dentro de la tabla semanal. `remind_at` guarda el recordatorio elegido.
 
+`00000000000012_comida.sql` crea `nutrition_daily` (totales diarios de calorías y macros copiados de Fitia) y agrega metas diarias a `user_settings`.
+
 ## Desarrollo
 
 ```bash
