@@ -7,6 +7,7 @@ export const EXPORT_TABLES = [
   { table: "schedule_blocks", label: "Horario semanal" },
   { table: "body_weight_logs", label: "Peso corporal" },
   { table: "body_measurements", label: "Medidas corporales" },
+  { table: "nutrition_daily", label: "Comida (totales diarios)" },
   { table: "workouts", label: "Entrenamientos" },
   { table: "workout_exercises", label: "Ejercicios de entrenamientos" },
   { table: "workout_sets", label: "Series" },

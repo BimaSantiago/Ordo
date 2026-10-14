@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Bell, CheckSquare, Clock, Flame, NotebookPen, Scale, Trash2, Wallet } from "lucide-react";
+import { Bell, CheckSquare, Clock, Flame, NotebookPen, Scale, Trash2, Utensils, Wallet } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { CategoryPicker } from "@/components/category-picker";
 import { MoneyForm } from "@/components/finance/money-form";
+import { NutritionForm } from "@/components/nutrition/nutrition-form";
 import { DayPicker } from "@/components/day-picker";
 import { runOrQueue } from "@/components/offline/run-or-queue";
 import { useSettings } from "@/components/settings-provider";
@@ -25,6 +26,7 @@ const TABS: { value: QuickAddTab; label: string; icon: typeof CheckSquare }[] = 
   { value: "dinero", label: "Dinero", icon: Wallet },
   { value: "habito", label: "Hábito", icon: Flame },
   { value: "peso", label: "Peso", icon: Scale },
+  { value: "comida", label: "Comida", icon: Utensils },
   { value: "nota", label: "Nota", icon: NotebookPen },
 ];
 
@@ -90,7 +92,17 @@ function QuickAddForm({
   const task = prefill.task;
   const transaction = prefill.transaction;
   const [tab, setTab] = useState<QuickAddTab>(
-    () => prefill.tab ?? (transaction ? "dinero" : task ? (task.startTime ? "actividad" : "tarea") : readLastTab())
+    () =>
+      prefill.tab ??
+      (transaction
+        ? "dinero"
+        : task
+          ? task.startTime
+            ? "actividad"
+            : "tarea"
+          : prefill.nutritionDate
+            ? "comida"
+            : readLastTab())
   );
   const [categories, setCategories] = useState<QuickCategory[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -208,7 +220,7 @@ function QuickAddForm({
         : simpleValue.trim().length > 0;
 
   const tabBar = (
-    <div role="tablist" aria-label="Qué quieres agregar" className="grid grid-cols-6 gap-1 rounded-2xl bg-surface-2 p-1">
+    <div role="tablist" aria-label="Qué quieres agregar" className="grid grid-cols-4 gap-1 rounded-2xl bg-surface-2 p-1">
       {TABS.map(({ value, label, icon: Icon }) => (
         <button
           key={value}
@@ -217,16 +229,25 @@ function QuickAddForm({
           aria-selected={tab === value}
           onClick={() => selectTab(value)}
           className={cn(
-            "pressable flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-semibold",
+            "pressable flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-semibold",
             tab === value ? "bg-surface text-primary" : "text-muted"
           )}
         >
-          <Icon size={20} aria-hidden />
+          <Icon size={18} aria-hidden />
           {label}
         </button>
       ))}
     </div>
   );
+
+  if (tab === "comida") {
+    return (
+      <div className="space-y-5 pt-2">
+        {tabBar}
+        <NutritionForm initialDate={prefill.nutritionDate} onClose={onClose} onSaved={onSaved} />
+      </div>
+    );
+  }
 
   if (tab === "dinero") {
     return (

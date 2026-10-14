@@ -17,6 +17,7 @@ import { finishWorkout } from "@/app/gimnasio/entrenar/actions";
 import { deleteTransaction, saveTransaction } from "@/app/finanzas/actions";
 import { deleteIdea, deleteNote, promoteIdea, saveIdea, saveNote, setNotePinned } from "@/app/notas/actions";
 import { saveWeeklyReview } from "@/app/revision/actions";
+import { deleteNutrition, saveNutrition } from "@/app/comida/actions";
 import { enqueue, flushOutbox, type ActionResult } from "@/lib/offline/outbox";
 
 /**
@@ -50,6 +51,8 @@ const EXECUTORS = {
   deleteIdea,
   promoteIdea,
   saveWeeklyReview,
+  saveNutrition,
+  deleteNutrition,
 } satisfies Record<string, (payload: never) => Promise<ActionResult>>;
 
 export type OfflineKind = keyof typeof EXECUTORS;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, CalendarCheck, ChevronRight, Download, Flame, FolderKanban, Scale, Settings, ShieldCheck, StickyNote, Tags, Wallet, type LucideIcon } from "lucide-react";
+import { Bell, CalendarCheck, ChevronRight, Download, Flame, FolderKanban, Scale, Settings, ShieldCheck, StickyNote, Tags, Utensils, Wallet, type LucideIcon } from "lucide-react";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -35,6 +35,12 @@ const LINKS: { href: string; label: string; description: string; icon: LucideIco
     label: "Hábitos",
     description: "Rachas, historial de la semana y del mes.",
     icon: Flame,
+  },
+  {
+    href: "/comida",
+    label: "Comida",
+    description: "Totales diarios de Fitia, metas y tendencia contra el peso.",
+    icon: Utensils,
   },
   {
     href: "/peso",

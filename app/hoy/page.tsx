@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarCheck, CalendarClock, CheckSquare, ChevronRight, Clock, Flame, Plus, Scale, Wallet } from "lucide-react";
+import { CalendarCheck, CalendarClock, CheckSquare, ChevronRight, Clock, Flame, Plus, Scale, Utensils, Wallet } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { addDaysToLocalDate, formatDisplayDate, formatShortDate, getLocalDateString, getLocalDayOfWeek } from "@/lib/date";
 import { Page } from "@/components/ui/page";
@@ -14,6 +14,7 @@ import { formatWeight } from "@/lib/units";
 import { formatMoney } from "@/lib/finance/money";
 import { currentStreak, isCompleted, isDue } from "@/lib/habits/streaks";
 import { reviewWeekFor } from "@/lib/review/week";
+import { loadNutritionGoals, NUTRITION_COLUMNS, toNutritionDay } from "@/lib/nutrition/load";
 
 type Category = { name: string; color: string } | { name: string; color: string }[] | null;
 
@@ -40,7 +41,7 @@ export default async function HoyPage() {
   // Domingo (semana en curso) y lunes (la que acaba de terminar): recordar la revisión semanal.
   const reviewWeek = dayOfWeek === 0 || dayOfWeek === 1 ? reviewWeekFor(localDate) : null;
 
-  const [tasksRes, habits, weightRes, blocksRes, expensesRes, reviewRes] = await Promise.all([
+  const [tasksRes, habits, weightRes, blocksRes, expensesRes, reviewRes, nutritionRes, nutritionGoals] = await Promise.all([
     supabase
       .from("tasks")
       .select("id, title, status, due_date, category_id, start_time, end_time, remind_at, schedule_categories(name, color)")
@@ -72,6 +73,8 @@ export default async function HoyPage() {
     reviewWeek
       ? supabase.from("weekly_reviews").select("id").eq("week_start", reviewWeek).maybeSingle()
       : Promise.resolve({ data: null }),
+    supabase.from("nutrition_daily").select(NUTRITION_COLUMNS).eq("local_date", localDate).maybeSingle(),
+    loadNutritionGoals(supabase),
   ]);
 
   const tasks: TaskRowData[] = (tasksRes.data ?? []).map((row) => {
@@ -133,6 +136,9 @@ export default async function HoyPage() {
   const spentToday = expenses.filter((e) => e.localDate === localDate).reduce((sum, e) => sum + e.amount, 0);
   const spentMonth = expenses.reduce((sum, e) => sum + e.amount, 0);
 
+  const nutrition = nutritionRes.data ? toNutritionDay(nutritionRes.data) : null;
+  const count = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 });
+
   const pendingCount = tasks.filter((t) => !t.completed).length;
   const habitsDone = todayHabits.filter((h) => isCompleted(h, h.todayValue)).length;
 
@@ -170,6 +176,28 @@ export default async function HoyPage() {
         <span className="flex-1">
           Gastado hoy <span className="font-bold tabular-nums">{formatMoney(spentToday, { round: true })}</span>
           <span className="text-muted"> · mes {formatMoney(spentMonth, { round: true })}</span>
+        </span>
+        <ChevronRight size={16} className="text-muted" aria-hidden />
+      </Link>
+
+      <Link
+        href="/comida"
+        className="pressable -mt-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-surface px-3 text-sm"
+      >
+        <Utensils size={16} className="text-muted" aria-hidden />
+        <span className="flex-1">
+          {nutrition ? (
+            <>
+              Comida{" "}
+              <span className="font-bold tabular-nums">
+                {nutrition.kcal == null ? "—" : count.format(nutrition.kcal)}
+                {nutritionGoals.kcal != null && ` / ${count.format(nutritionGoals.kcal)}`} kcal
+              </span>
+              {nutrition.proteinG != null && <span className="text-muted"> · P {count.format(nutrition.proteinG)} g</span>}
+            </>
+          ) : (
+            <span className="text-muted">Comida de hoy sin registrar</span>
+          )}
         </span>
         <ChevronRight size={16} className="text-muted" aria-hidden />
       </Link>
