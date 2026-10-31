@@ -35,3 +35,12 @@ for (const { file, size, scale, rounded } of outputs) {
 
 await writeFile("public/icons/icon.svg", svg({ scale: 0.95, rounded: true }));
 console.log("✓ public/icons/icon.svg");
+
+// Insignia de las notificaciones en la barra de estado de Android: solo la silueta (Android
+// usa el canal alfa y la pinta del color del sistema), sin fondo.
+const badge = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#fff" stroke-width="56"/>
+  <path d="M176 262 l56 56 l110 -122" fill="none" stroke="#fff" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+await sharp(Buffer.from(badge)).resize(96, 96).png().toFile("public/icons/badge-96.png");
+console.log("✓ public/icons/badge-96.png");
