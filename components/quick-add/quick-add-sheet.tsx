@@ -9,6 +9,7 @@ import { CategoryPicker } from "@/components/category-picker";
 import { MoneyForm } from "@/components/finance/money-form";
 import { NutritionForm } from "@/components/nutrition/nutrition-form";
 import { DayPicker } from "@/components/day-picker";
+import { PushHint } from "@/components/push-hint";
 import { runOrQueue } from "@/components/offline/run-or-queue";
 import { useSettings } from "@/components/settings-provider";
 import { roundTo, toKg } from "@/lib/units";
@@ -352,6 +353,7 @@ function QuickAddForm({
                 </Chip>
               ))}
             </div>
+            {reminder !== "none" && <PushHint />}
           </Field>
         </>
       )}

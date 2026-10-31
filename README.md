@@ -25,6 +25,18 @@ NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
 ```
 
+### Recordatorios (notificaciones push)
+
+```
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=...   # npx web-push generate-vapid-keys
+VAPID_PRIVATE_KEY=...              # solo servidor
+VAPID_SUBJECT=https://tu-dominio   # o mailto:tu-correo
+CRON_SECRET=...                    # cadena aleatoria larga; la misma va en Vault (ver abajo)
+SUPABASE_SERVICE_ROLE_KEY=...      # Project Settings → API. Solo servidor: la usa el cron
+```
+
+Las llaves VAPID identifican al servidor ante el servicio de push del navegador. Si cambian, cada dispositivo debe volver a activar las notificaciones.
+
 ## Base de datos (Supabase)
 
 Las migraciones SQL están en `supabase/migrations/`. Para aplicarlas a un proyecto de Supabase:
@@ -47,6 +59,15 @@ O bien copia y ejecuta el contenido de cada archivo, en orden, desde el SQL Edit
 
 `00000000000012_comida.sql` crea `nutrition_daily` (totales diarios de calorías y macros copiados de Fitia) y agrega metas diarias a `user_settings`.
 
+`00000000000013_recordatorios.sql` crea `push_subscriptions` (un registro por dispositivo con notificaciones activas) y agrega `tasks.reminded_at`.
+
+`00000000000014_recordatorios_cron.sql` programa con `pg_cron` una llamada cada minuto a `/api/cron/reminders`. Antes de correrla, crea en el SQL Editor los dos secretos de Vault:
+
+```sql
+select vault.create_secret('https://tu-dominio/api/cron/reminders', 'reminders_url');
+select vault.create_secret('<el mismo valor de CRON_SECRET>', 'reminders_cron_secret');
+```
+
 ## Desarrollo
 
 ```bash
@@ -68,4 +89,4 @@ En Android: abre la app en Chrome → menú → "Agregar a pantalla principal".
 
 ## Despliegue
 
-Conecta el repositorio en [Vercel](https://vercel.com/new) y define las mismas variables de entorno (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) en la configuración del proyecto.
+Conecta el repositorio en [Vercel](https://vercel.com/new) y define las mismas variables de entorno (las de Supabase y las de recordatorios) en la configuración del proyecto.

@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/offline"];
+// /api/cron/ no tiene sesión de usuario: cada ruta valida su propio secreto.
+const PUBLIC_PATHS = ["/login", "/offline", "/api/cron/"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });

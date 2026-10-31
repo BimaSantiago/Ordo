@@ -281,7 +281,13 @@ Patrón a seguir para las demás pantallas:
 
 En Materias, `category-item.tsx` edita en un `Sheet` (nombre, tipo, color de `lib/schedule/colors.ts`, archivar, eliminar). `createCategoryQuick` permite crear una materia en línea desde `components/category-picker.tsx` (panel rápido y editor de bloques) y la deja seleccionada.
 
-**Recordatorios:** `tasks.remind_at` se calcula en el cliente con `computeRemindAt` (`lib/reminders.ts`, en America/Mexico_City vía `localDateTimeToUtcIso`). La entrega por Web Push (suscripciones, Edge Function con cron y columna `reminded_at`) está pendiente.
+**Recordatorios:** `tasks.remind_at` se calcula en el cliente con `computeRemindAt` (`lib/reminders.ts`, en America/Mexico_City vía `localDateTimeToUtcIso`). La entrega es por Web Push:
+- `push_subscriptions` (migración 0013): una fila por navegador o celular (`endpoint` único, llaves `p256dh`/`auth`). Se activa en `/mas/recordatorios` (`push-settings.tsx` + `lib/push/client.ts`), que también manda una prueba solo a ese dispositivo. El panel "+" avisa con `PushHint` si se elige un recordatorio y el dispositivo no está suscrito.
+- **Cron:** `pg_cron` + `pg_net` en Supabase (migración 0014; Vercel Hobby solo permite crons diarios) hace `POST /api/cron/reminders` cada minuto con `Authorization: Bearer <CRON_SECRET>`. La URL y el secreto viven en Vault (`reminders_url`, `reminders_cron_secret`). El proxy deja pasar `/api/cron/` sin sesión; la ruta valida el secreto.
+- La ruta usa `lib/supabase/admin.ts` (service_role, se salta RLS; **solo** para el cron). **Reclama** los avisos con un solo `UPDATE ... set reminded_at` (tareas pendientes con `remind_at` en la última hora, `REMINDER_GRACE_MINUTES`), así dos ejecuciones encimadas no duplican. Si todos los envíos de una tarea fallan por error pasajero, regresa `reminded_at` a null para reintentar; las suscripciones con 404/410 se borran.
+- Un trigger regresa `reminded_at` a null cuando cambia `remind_at`: editar la hora del aviso lo vuelve a programar.
+- Contenido de la notificación en `lib/push/reminder-payload.ts` (con pruebas); envío en `lib/push/send.ts` (`web-push`, VAPID). `public/sw.js` la muestra (`push`) y al tocarla enfoca o abre la app (`notificationclick`). La insignia monocromática `icons/badge-96.png` sale de `scripts/generate-icons.mjs`.
+- Variables: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET` y `SUPABASE_SERVICE_ROLE_KEY` (ver README).
 
 `schedule_blocks.day_of_week` (0=domingo..6=sábado) se resuelve con `getLocalDayOfWeek()` en `lib/date.ts`; es aritmética de calendario y no depende de la zona horaria del servidor.
 
@@ -371,6 +377,8 @@ Migraciones SQL planas (sin CLI de Supabase todavía integrada al flujo). Cada t
 - `00000000000010_notas_fijadas.sql`: `notes.pinned` e índices de notas, ideas y tareas por proyecto.
 - `00000000000011_revision_semanal.sql`: tabla `weekly_reviews` (reflexión semanal).
 - `00000000000012_comida.sql`: tabla `nutrition_daily` (totales diarios de comida) y metas diarias en `user_settings`.
+- `00000000000013_recordatorios.sql`: `push_subscriptions`, `tasks.reminded_at` y trigger que lo reinicia al cambiar `remind_at`.
+- `00000000000014_recordatorios_cron.sql`: `pg_cron` + `pg_net` y el job `send-reminders` (cada minuto). Requiere crear antes los secretos de Vault que indica el archivo.
 - `00000000000004_seed_exercises.sql`: siembra 876 ejercicios de free-exercise-db en `exercises` con `user_id null` (biblioteca global). Nombres y grupos musculares en inglés tal cual el dataset; ver `lib/exercises.ts` para la traducción en la capa de presentación.
 
 Al aplicar migraciones nuevas, sigue la convención de nombre `NNNNNNNNNNNNNN_descripcion.sql` (timestamp o número secuencial) para que se ejecuten en orden.
