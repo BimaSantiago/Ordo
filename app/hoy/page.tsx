@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarCheck, CalendarClock, CheckSquare, ChevronRight, Clock, Flame, Plus, Scale, Utensils, Wallet } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { addDaysToLocalDate, formatDisplayDate, formatShortDate, getLocalDateString, getLocalDayOfWeek } from "@/lib/date";
+import { addDaysToLocalDate, formatDisplayDate, formatShortDate, getLocalDateString, getLocalDayOfWeek, getLocalWeekStart } from "@/lib/date";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, SectionTitle } from "@/components/ui/card";
@@ -63,12 +63,12 @@ export default async function HoyPage() {
       .select("id, start_time, end_time, notes, schedule_categories(name, color)")
       .eq("day_of_week", dayOfWeek)
       .order("start_time", { ascending: true }),
-    // Gastos del mes hasta hoy para la tarjeta de finanzas (un mes cabe de sobra en 1000 filas).
+    // Gastos de la semana (lunes a hoy) para la tarjeta de finanzas.
     supabase
       .from("transactions")
       .select("amount, local_date")
       .eq("kind", "gasto")
-      .gte("local_date", `${localDate.slice(0, 7)}-01`)
+      .gte("local_date", getLocalWeekStart(localDate))
       .lte("local_date", localDate),
     reviewWeek
       ? supabase.from("weekly_reviews").select("id").eq("week_start", reviewWeek).maybeSingle()
@@ -134,7 +134,7 @@ export default async function HoyPage() {
 
   const expenses = (expensesRes.data ?? []).map((row) => ({ amount: Number(row.amount), localDate: row.local_date as string }));
   const spentToday = expenses.filter((e) => e.localDate === localDate).reduce((sum, e) => sum + e.amount, 0);
-  const spentMonth = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const spentWeek = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   const nutrition = nutritionRes.data ? toNutritionDay(nutritionRes.data) : null;
   const count = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 });
@@ -175,7 +175,7 @@ export default async function HoyPage() {
         <Wallet size={16} className="text-muted" aria-hidden />
         <span className="flex-1">
           Gastado hoy <span className="font-bold tabular-nums">{formatMoney(spentToday, { round: true })}</span>
-          <span className="text-muted"> · mes {formatMoney(spentMonth, { round: true })}</span>
+          <span className="text-muted"> · semana {formatMoney(spentWeek, { round: true })}</span>
         </span>
         <ChevronRight size={16} className="text-muted" aria-hidden />
       </Link>

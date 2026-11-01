@@ -166,7 +166,7 @@ export default async function RevisionPage({ searchParams }: { searchParams: Pro
           }
         />
         <StatLink
-          href={`/finanzas?mes=${to.slice(0, 7)}`}
+          href={`/finanzas?vista=semana&semana=${weekStart}`}
           icon={<Wallet size={16} aria-hidden />}
           value={formatMoney(money.expense, { round: true })}
           label={`gastado · ingresos ${formatMoney(money.income, { round: true })}`}
