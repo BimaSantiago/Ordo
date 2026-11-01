@@ -158,7 +158,8 @@ Todas las tablas llevan `user_id`, `created_at`, `updated_at` y **RLS activado**
 
 - ~~Definir el modelo de hábitos~~ Decidido: sí/no o meta numérica al día, todos los días o ciertos días (sin "X veces por semana").
 - Confirmar si Fitia escribe en Health Connect.
-- Decidir nombre y diseño visual de la app.
+- Nombre: **Ordo** (decidido). Ícono: **Encerrado** (trazo de marcador índigo sobre mandarina, decidido el 2026-11-01); falta elegir logotipo y aplicar la paleta a la app (sin verde).
+- Cambiar la biblioteca de ejercicios (free-exercise-db): al usuario no le gustan los nombres en inglés, las fotos ni la cantidad de ejercicios raros. Pidió ExerciseDB con GIFs; su plan gratis tiene GIFs de 180 px, no permite guardar datos ni caché sin conexión y solo está en inglés. Decisión pendiente.
 
 ## 10. Primera tarea sugerida
 
@@ -322,7 +323,8 @@ Hub en `/gimnasio` con enlaces a `/gimnasio/entrenar`, `/gimnasio/progreso`, `/g
 - **Lógica pura con pruebas:** `lib/finance/money.ts` (`parseAmount` acepta "1,250", "99,5", "$150"; `formatMoney`) y `lib/finance/summary.ts` (meses `YYYY-MM`, `summarize`, `expensesByCategory`, `groupByDay`, `monthlyTotals`, `budgetStatus`: alerta desde 80%, excedido al pasar 100%). Las transferencias no cuentan como gasto ni ingreso.
 - `lib/finance/load.ts`: lecturas para Server Components (convierte `numeric`, pagina de 1000 en 1000).
 - **Captura:** pestaña "Dinero" del panel "+" (`components/finance/money-form.tsx`). Recuerda la última cuenta y cachea cuentas y categorías en `localStorage` para usarse sin señal. `saveTransaction` y `deleteTransaction` pasan por `runOrQueue`; cuentas, categorías y presupuestos se editan con señal.
-- **Pantallas:** `/finanzas?mes=YYYY-MM` (resumen, saldos, presupuesto, gasto por categoría, gráfica de 6 meses `MonthlyChart`, movimientos por día; tocar uno abre el panel con `prefill.transaction`), `/finanzas/cuentas` y `/finanzas/categorias` (límites). Tarjeta "Gastado hoy · mes" en Hoy.
+- **Pantallas:** `/finanzas` abre en la **vista semanal** (lunes a domingo, `?vista=semana&semana=YYYY-MM-DD`): resumen, comparación con la semana anterior y promedio al día, gasto por día (`WeekDaysChart`), saldos, gasto por categoría y movimientos. La **vista mensual** (`?vista=mes&mes=YYYY-MM`; `?mes=` solo también la abre) agrega "Por semana" (semanas recortadas al mes con `weeksOfMonth`, cada una liga a su detalle), presupuesto y la gráfica de 6 meses `MonthlyChart`. Las piezas compartidas viven en `app/finanzas/sections.tsx`. Tocar un movimiento abre el panel con `prefill.transaction`. También `/finanzas/cuentas` y `/finanzas/categorias` (límites). Tarjeta "Gastado hoy · semana" en Hoy.
+- Semanas con pruebas en `lib/finance/summary.ts`: `dailyTotals`, `weeksOfMonth` (la suma de las semanas da el mes), `summarizeRange` y `formatDateRange`. El presupuesto sigue siendo mensual.
 
 ### Proyectos, notas e ideas (`app/proyectos/`, `app/notas/`)
 

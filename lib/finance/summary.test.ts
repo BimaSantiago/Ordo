@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   addMonths,
   budgetStatus,
+  dailyTotals,
   expensesByCategory,
+  formatDateRange,
   groupByDay,
   isValidMonth,
   monthlyTotals,
   monthRange,
   summarize,
+  summarizeRange,
+  weeksOfMonth,
   type TransactionLike,
 } from "./summary";
 
@@ -116,5 +120,41 @@ describe("budgetStatus", () => {
 
   it("excedido al pasar el límite, con restante negativo", () => {
     expect(budgetStatus(1200.5, 1000)).toEqual({ ratio: 1.2005, remaining: -200.5, level: "excedido" });
+  });
+});
+
+describe("semanas", () => {
+  it("dailyTotals incluye los días sin movimientos y no cuenta transferencias", () => {
+    const rows = dailyTotals(
+      [t("gasto", 100, "2026-11-02"), t("gasto", 50.5, "2026-11-02"), t("ingreso", 300, "2026-11-04"), t("transferencia", 999, "2026-11-04")],
+      "2026-11-02",
+      "2026-11-08"
+    );
+    expect(rows).toHaveLength(7);
+    expect(rows[0]).toEqual({ localDate: "2026-11-02", income: 0, expense: 150.5 });
+    expect(rows[2]).toEqual({ localDate: "2026-11-04", income: 300, expense: 0 });
+    expect(rows[6]).toEqual({ localDate: "2026-11-08", income: 0, expense: 0 });
+  });
+
+  it("weeksOfMonth recorta las semanas al mes y guarda el lunes real", () => {
+    // Noviembre 2026 empieza en domingo: la primera "semana" del mes es solo el día 1.
+    const weeks = weeksOfMonth("2026-11");
+    expect(weeks[0]).toEqual({ weekStart: "2026-10-26", from: "2026-11-01", to: "2026-11-01" });
+    expect(weeks[1]).toEqual({ weekStart: "2026-11-02", from: "2026-11-02", to: "2026-11-08" });
+    expect(weeks.at(-1)).toEqual({ weekStart: "2026-11-30", from: "2026-11-30", to: "2026-11-30" });
+    expect(weeks).toHaveLength(6);
+  });
+
+  it("la suma de las semanas da el total del mes", () => {
+    const txs = [t("gasto", 10, "2026-11-01"), t("gasto", 20, "2026-11-15"), t("ingreso", 500, "2026-11-30"), t("gasto", 99, "2026-10-31")];
+    const weeks = weeksOfMonth("2026-11").map((range) => summarizeRange(txs, range));
+    expect(weeks.reduce((sum, w) => sum + w.expense, 0)).toBe(30);
+    expect(weeks.reduce((sum, w) => sum + w.income, 0)).toBe(500);
+  });
+
+  it("formatDateRange", () => {
+    expect(formatDateRange("2026-11-02", "2026-11-08")).toBe("2 – 8 nov");
+    expect(formatDateRange("2026-10-26", "2026-11-01")).toBe("26 oct – 1 nov");
+    expect(formatDateRange("2026-11-01", "2026-11-01")).toBe("1 nov");
   });
 });

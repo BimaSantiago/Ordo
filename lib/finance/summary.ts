@@ -1,3 +1,4 @@
+import { addDaysToLocalDate, getLocalWeekStart } from "../date";
 import { roundMoney } from "./money";
 
 export type TransactionKind = "gasto" | "ingreso" | "transferencia";
@@ -89,6 +90,57 @@ export function monthlyTotals(transactions: TransactionLike[], fromMonth: string
     else if (t.kind === "gasto") row.expense += t.amount;
   }
   return [...rows.values()].map((row) => ({ ...row, income: roundMoney(row.income), expense: roundMoney(row.expense) }));
+}
+
+/** Ingresos y gastos de cada día de `from` a `to` (incluidos), también los días sin movimientos. */
+export function dailyTotals(transactions: TransactionLike[], from: string, to: string) {
+  const rows = new Map<string, { localDate: string; income: number; expense: number }>();
+  for (let day = from; day <= to; day = addDaysToLocalDate(day, 1)) {
+    rows.set(day, { localDate: day, income: 0, expense: 0 });
+  }
+  for (const t of transactions) {
+    const row = rows.get(t.localDate);
+    if (!row) continue;
+    if (t.kind === "ingreso") row.income += t.amount;
+    else if (t.kind === "gasto") row.expense += t.amount;
+  }
+  return [...rows.values()].map((row) => ({ ...row, income: roundMoney(row.income), expense: roundMoney(row.expense) }));
+}
+
+export type DateRange = { from: string; to: string };
+
+/**
+ * Semanas (lunes a domingo) que tocan el mes, recortadas a los días del mes: así la suma de las
+ * semanas da el total del mes. `weekStart` es el lunes real, para ligar al detalle de la semana.
+ */
+export function weeksOfMonth(month: string): (DateRange & { weekStart: string })[] {
+  const { from, to } = monthRange(month);
+  const weeks: (DateRange & { weekStart: string })[] = [];
+  for (let weekStart = getLocalWeekStart(from); weekStart <= to; weekStart = addDaysToLocalDate(weekStart, 7)) {
+    const weekEnd = addDaysToLocalDate(weekStart, 6);
+    weeks.push({ weekStart, from: weekStart < from ? from : weekStart, to: weekEnd > to ? to : weekEnd });
+  }
+  return weeks;
+}
+
+/** Resumen (ingresos, gastos, balance) de los movimientos dentro de un rango de fechas. */
+export function summarizeRange(transactions: TransactionLike[], { from, to }: DateRange) {
+  return summarize(transactions.filter((t) => t.localDate >= from && t.localDate <= to));
+}
+
+const shortMonth = new Intl.DateTimeFormat("es-MX", { month: "short", timeZone: "UTC" });
+
+function dayAndMonth(localDate: string) {
+  const [year, month, day] = localDate.split("-").map(Number);
+  return { day, month: shortMonth.format(new Date(Date.UTC(year, month - 1, day))).replace(".", "") };
+}
+
+/** "2 – 8 nov" o, si cruza de mes, "26 oct – 1 nov". */
+export function formatDateRange(from: string, to: string): string {
+  const a = dayAndMonth(from);
+  const b = dayAndMonth(to);
+  if (from === to) return `${a.day} ${a.month}`;
+  return a.month === b.month ? `${a.day} – ${b.day} ${b.month}` : `${a.day} ${a.month} – ${b.day} ${b.month}`;
 }
 
 export type BudgetLevel = "ok" | "alerta" | "excedido";
