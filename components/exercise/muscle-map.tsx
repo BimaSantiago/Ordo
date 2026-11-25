@@ -3,7 +3,7 @@
 import Body from "react-muscle-highlighter";
 import { bodyHighlights, needsSide, translateMuscleGroup } from "@/lib/exercises";
 
-/** Principal = intensidad 1 (naranja), secundarios = intensidad 2 (teal). Tokens CSS para que funcione en modo oscuro. */
+/** Principal = intensidad 1 (naranja), secundarios = intensidad 2 (índigo). Tokens CSS para que funcione en modo oscuro. */
 const COLORS = ["var(--accent)", "var(--primary)"];
 
 /**

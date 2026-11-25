@@ -1,71 +1,44 @@
 import Link from "next/link";
-import { BarChart3, ChevronLeft, ChevronRight, Landmark, ListOrdered, PieChart, Plus, Settings2, Target } from "lucide-react";
+import { BarChart3, CalendarRange, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Page } from "@/components/ui/page";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { QuickAddButton } from "@/components/quick-add/quick-add-button";
+import { MonthlyChart } from "@/components/finance/monthly-chart";
+import { WeekDaysChart } from "@/components/finance/week-days-chart";
 import { ensureFinanceDefaults } from "@/lib/finance/defaults";
 import { loadAccounts, loadBudgets, loadCategories, loadTransactions } from "@/lib/finance/load";
 import { formatMoney } from "@/lib/finance/money";
 import {
   addMonths,
-  budgetStatus,
-  expensesByCategory,
+  dailyTotals,
+  formatDateRange,
   formatMonth,
-  groupByDay,
   isValidMonth,
   monthOf,
   monthlyTotals,
   monthRange,
   summarize,
+  summarizeRange,
+  weeksOfMonth,
 } from "@/lib/finance/summary";
-import { addDaysToLocalDate, formatDisplayDate, getLocalDateString } from "@/lib/date";
+import { resolveWeekStart, weekRange } from "@/lib/review/week";
+import { addDaysToLocalDate, getLocalDateString, getLocalWeekStart } from "@/lib/date";
 import { cn } from "@/lib/cn";
-import { TransactionRow } from "./transaction-row";
-import { MonthlyChart } from "@/components/finance/monthly-chart";
+import { AccountsStrip, BudgetSection, CategoryBreakdown, MovementsList, SummaryCard } from "./sections";
 
-export default async function FinanzasPage({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
-  const { mes } = await searchParams;
+type SearchParams = { vista?: string; mes?: string; semana?: string };
+
+export default async function FinanzasPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const params = await searchParams;
   const today = getLocalDateString();
-  const currentMonth = monthOf(today);
-  const month = isValidMonth(mes) ? mes : currentMonth;
-  const { from, to } = monthRange(month);
+  // La semana es la vista principal; `?mes=` solo (enlaces anteriores) abre la vista mensual.
+  const view = params.vista === "mes" || (params.vista !== "semana" && isValidMonth(params.mes)) ? "mes" : "semana";
 
   const supabase = await createSupabaseServerClient();
   const { data: auth } = await supabase.auth.getUser();
   if (auth.user) await ensureFinanceDefaults(supabase, auth.user.id);
-
-  // Tendencia: el mes visto y los 5 anteriores.
-  const trendFrom = addMonths(month, -5);
-  const [accounts, categories, trendTransactions, budgets] = await Promise.all([
-    loadAccounts(supabase),
-    loadCategories(supabase),
-    loadTransactions(supabase, monthRange(trendFrom).from, to),
-    loadBudgets(supabase),
-  ]);
-  const transactions = trendTransactions.filter((t) => t.localDate >= from);
-  const trend = monthlyTotals(trendTransactions, trendFrom, month);
-
-  const categoryById = new Map(categories.map((c) => [c.id, c]));
-  const accountById = new Map(accounts.map((a) => [a.id, a]));
-  const summary = summarize(transactions);
-  const byCategory = expensesByCategory(transactions);
-  const spentByCategory = new Map(byCategory.map((row) => [row.categoryId, row.total]));
-  const days = groupByDay(transactions);
-  const activeAccounts = accounts.filter((a) => !a.archived);
-  const totalBalance = activeAccounts.reduce((sum, a) => sum + a.balance, 0);
-
-  const budgetRows = categories
-    .filter((c) => c.kind === "gasto" && budgets.has(c.id))
-    .map((category) => {
-      const limit = budgets.get(category.id)!;
-      const spent = spentByCategory.get(category.id) ?? 0;
-      return { category, limit, spent, ...budgetStatus(spent, limit) };
-    })
-    .sort((a, b) => b.ratio - a.ratio);
-
-  const maxCategory = byCategory[0]?.total ?? 0;
 
   return (
     <Page>
@@ -81,152 +54,176 @@ export default async function FinanzasPage({ searchParams }: { searchParams: Pro
           </QuickAddButton>
         }
       />
+      {view === "semana" ? (
+        <WeekView weekParam={params.semana} today={today} supabase={supabase} />
+      ) : (
+        <MonthView monthParam={params.mes} today={today} supabase={supabase} />
+      )}
+    </Page>
+  );
+}
 
-      <nav aria-label="Mes" className="flex items-center justify-between">
-        <Link
-          href={`/finanzas?mes=${addMonths(month, -1)}`}
-          aria-label="Mes anterior"
-          className="pressable flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-surface"
-        >
-          <ChevronLeft size={20} aria-hidden />
-        </Link>
-        <p className="font-semibold first-letter:uppercase">{formatMonth(month)}</p>
-        {month < currentMonth ? (
-          <Link
-            href={`/finanzas?mes=${addMonths(month, 1)}`}
-            aria-label="Mes siguiente"
-            className="pressable flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-surface"
-          >
-            <ChevronRight size={20} aria-hidden />
-          </Link>
-        ) : (
-          <span className="h-11 w-11" aria-hidden />
-        )}
-      </nav>
+type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
-      <Card className="grid grid-cols-3 divide-x divide-line py-3">
-        <Stat label="Ingresos" value={formatMoney(summary.income, { round: true })} className="text-success" />
-        <Stat label="Gastos" value={formatMoney(summary.expense, { round: true })} />
-        <Stat
-          label="Balance"
-          value={formatMoney(summary.net, { round: true, signed: true })}
-          className={summary.net < 0 ? "text-danger" : undefined}
-        />
-      </Card>
+async function WeekView({ weekParam, today, supabase }: { weekParam?: string; today: string; supabase: Supabase }) {
+  const weekStart = resolveWeekStart(weekParam, today);
+  const range = weekRange(weekStart);
+  const previous = weekRange(addDaysToLocalDate(weekStart, -7));
+  const isCurrent = weekStart === getLocalWeekStart(today);
 
-      <section className="space-y-2">
-        <SectionTitle
-          icon={<Landmark size={16} aria-hidden />}
-          action={
-            <Link href="/finanzas/cuentas" className="pressable inline-flex min-h-9 items-center gap-1 px-1 text-sm font-semibold text-primary">
-              <Settings2 size={16} aria-hidden />
-              Cuentas
-            </Link>
-          }
-        >
-          Saldo actual · {formatMoney(totalBalance)}
-        </SectionTitle>
-        <div className="-mx-4 flex gap-2 overflow-x-auto overscroll-x-contain px-4 pb-1 [scrollbar-width:none]">
-          {activeAccounts.map((account) => (
-            <Link
-              key={account.id}
-              href="/finanzas/cuentas"
-              className="pressable min-w-36 shrink-0 rounded-2xl border border-line bg-surface px-3 py-2.5"
-            >
-              <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
-                <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: account.color }} />
-                <span className="truncate">{account.name}</span>
-              </span>
-              <span className={cn("block text-lg font-bold tabular-nums", account.balance < 0 && "text-danger")}>
-                {formatMoney(account.balance)}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
+  const [accounts, categories, bothWeeks] = await Promise.all([
+    loadAccounts(supabase),
+    loadCategories(supabase),
+    loadTransactions(supabase, previous.from, range.to),
+  ]);
+  const transactions = bothWeeks.filter((t) => t.localDate >= range.from);
+  const summary = summarize(transactions);
+  const previousSummary = summarizeRange(bothWeeks, previous);
+  const days = dailyTotals(transactions, range.from, range.to);
+  const elapsedDays = isCurrent ? days.filter((d) => d.localDate <= today).length : 7;
+  const monthForToggle = monthOf(range.to <= today ? range.to : today);
+
+  return (
+    <>
+      <ViewToggle
+        view="semana"
+        weekHref="/finanzas?vista=semana"
+        monthHref={`/finanzas?vista=mes&mes=${monthForToggle}`}
+      />
+      <PeriodNav
+        label={isCurrent ? `Esta semana · ${formatDateRange(range.from, range.to)}` : formatDateRange(range.from, range.to)}
+        previousHref={`/finanzas?vista=semana&semana=${previous.from}`}
+        previousLabel="Semana anterior"
+        nextHref={isCurrent ? null : `/finanzas?vista=semana&semana=${addDaysToLocalDate(weekStart, 7)}`}
+        nextLabel="Semana siguiente"
+      />
+
+      <SummaryCard summary={summary} />
+      <WeekComparison
+        expense={summary.expense}
+        previousExpense={previousSummary.expense}
+        elapsedDays={elapsedDays}
+        isCurrent={isCurrent}
+      />
 
       <section className="space-y-2">
-        <SectionTitle
-          icon={<Target size={16} aria-hidden />}
-          action={
-            <Link href="/finanzas/categorias" className="pressable inline-flex min-h-9 items-center px-1 text-sm font-semibold text-primary">
-              {budgetRows.length > 0 ? "Editar" : "Definir"}
-            </Link>
-          }
-        >
-          Presupuesto del mes
-        </SectionTitle>
-        {budgetRows.length > 0 ? (
-          <Card className="divide-y divide-line">
-            {budgetRows.map(({ category, limit, spent, ratio, remaining, level }) => (
-              <div key={category.id} className="space-y-1.5 px-3 py-2.5">
-                <div className="flex items-baseline justify-between gap-2 text-sm">
-                  <span className="flex min-w-0 items-center gap-1.5 font-semibold">
-                    <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
-                    <span className="truncate">{category.name}</span>
-                  </span>
-                  <span className="shrink-0 tabular-nums text-muted">
-                    {formatMoney(spent, { round: true })} / {formatMoney(limit, { round: true })}
-                  </span>
-                </div>
-                <div
-                  className="h-2 overflow-hidden rounded-full bg-surface-2"
-                  role="progressbar"
-                  aria-label={`${category.name}: ${Math.round(ratio * 100)}% del presupuesto`}
-                  aria-valuenow={Math.round(ratio * 100)}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                >
-                  <div
-                    className={cn(
-                      "h-full rounded-full",
-                      level === "ok" ? "bg-primary" : level === "alerta" ? "bg-accent" : "bg-danger"
-                    )}
-                    style={{ width: `${Math.min(ratio, 1) * 100}%` }}
-                  />
-                </div>
-                <p className={cn("text-xs", level === "excedido" ? "font-semibold text-danger" : "text-muted")}>
-                  {level === "excedido"
-                    ? `Te pasaste por ${formatMoney(-remaining, { round: true })}`
-                    : `Te quedan ${formatMoney(remaining, { round: true })}${level === "alerta" ? " · cerca del límite" : ""}`}
-                </p>
-              </div>
-            ))}
-          </Card>
-        ) : (
-          <Card className="px-4 py-4 text-sm text-muted">
-            Pon un límite mensual a tus categorías (p. ej. Comida $2,000) para ver cuánto te queda.
-          </Card>
-        )}
+        <SectionTitle icon={<BarChart3 size={16} aria-hidden />}>Gasto por día</SectionTitle>
+        <Card className="px-3 pt-3 pb-2">
+          <WeekDaysChart days={days} today={today} />
+        </Card>
       </section>
 
-      {byCategory.length > 0 && (
+      <AccountsStrip accounts={accounts} />
+      <CategoryBreakdown transactions={transactions} categories={categories} />
+      <MovementsList
+        transactions={transactions}
+        accounts={accounts}
+        categories={categories}
+        today={today}
+        emptyText="Sin movimientos esta semana. Registra uno con el botón +."
+      />
+    </>
+  );
+}
+
+function WeekComparison({
+  expense,
+  previousExpense,
+  elapsedDays,
+  isCurrent,
+}: {
+  expense: number;
+  previousExpense: number;
+  elapsedDays: number;
+  isCurrent: boolean;
+}) {
+  if (expense === 0 && previousExpense === 0) return null;
+  const diff = expense - previousExpense;
+  const average = elapsedDays > 0 ? expense / elapsedDays : 0;
+  const comparison =
+    previousExpense === 0
+      ? "La semana pasada no registraste gastos."
+      : Math.abs(diff) < 1
+        ? "Gastaste lo mismo que la semana pasada."
+        : `${isCurrent ? "Llevas" : "Gastaste"} ${formatMoney(Math.abs(diff), { round: true })} ${diff < 0 ? "menos" : "más"} que la semana pasada.`;
+
+  return (
+    <p className="-mt-2 px-1 text-sm text-muted">
+      <span className={cn(previousExpense > 0 && diff >= 1 && "font-semibold text-fg")}>{comparison}</span> Promedio de{" "}
+      <span className="font-semibold tabular-nums text-fg">{formatMoney(average, { round: true })}</span> al día
+      {isCurrent ? ` en ${elapsedDays} ${elapsedDays === 1 ? "día" : "días"}.` : "."}
+    </p>
+  );
+}
+
+async function MonthView({ monthParam, today, supabase }: { monthParam?: string; today: string; supabase: Supabase }) {
+  const currentMonth = monthOf(today);
+  const month = isValidMonth(monthParam) && monthParam <= currentMonth ? monthParam : currentMonth;
+  const { from, to } = monthRange(month);
+  // Tendencia: el mes visto y los 5 anteriores.
+  const trendFrom = addMonths(month, -5);
+
+  const [accounts, categories, trendTransactions, budgets] = await Promise.all([
+    loadAccounts(supabase),
+    loadCategories(supabase),
+    loadTransactions(supabase, monthRange(trendFrom).from, to),
+    loadBudgets(supabase),
+  ]);
+  const transactions = trendTransactions.filter((t) => t.localDate >= from);
+  const trend = monthlyTotals(trendTransactions, trendFrom, month);
+  const weeks = weeksOfMonth(month)
+    .filter((week) => week.from <= today)
+    .map((week) => ({ ...week, ...summarizeRange(transactions, week) }))
+    .reverse();
+  const weekForToggle = month === currentMonth ? null : resolveWeekStart(to, today);
+
+  return (
+    <>
+      <ViewToggle
+        view="mes"
+        weekHref={weekForToggle ? `/finanzas?vista=semana&semana=${weekForToggle}` : "/finanzas?vista=semana"}
+        monthHref={`/finanzas?vista=mes&mes=${month}`}
+      />
+      <PeriodNav
+        label={formatMonth(month)}
+        previousHref={`/finanzas?vista=mes&mes=${addMonths(month, -1)}`}
+        previousLabel="Mes anterior"
+        nextHref={month < currentMonth ? `/finanzas?vista=mes&mes=${addMonths(month, 1)}` : null}
+        nextLabel="Mes siguiente"
+      />
+
+      <SummaryCard summary={summarize(transactions)} />
+
+      {weeks.length > 0 && (
         <section className="space-y-2">
-          <SectionTitle icon={<PieChart size={16} aria-hidden />}>Gasto por categoría</SectionTitle>
-          <Card className="space-y-3 px-3 py-3">
-            {byCategory.map(({ categoryId, total }) => {
-              const category = categoryId ? categoryById.get(categoryId) : undefined;
-              return (
-                <div key={categoryId ?? "none"} className="space-y-1">
-                  <div className="flex items-baseline justify-between gap-2 text-sm">
-                    <span className="truncate font-medium">{category?.name ?? "Sin categoría"}</span>
-                    <span className="shrink-0 tabular-nums">
-                      {formatMoney(total, { round: true })}
-                      <span className="ml-1.5 text-xs text-muted">{Math.round((total / summary.expense) * 100)}%</span>
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${(total / maxCategory) * 100}%`, backgroundColor: category?.color ?? "var(--muted)" }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+          <SectionTitle icon={<CalendarRange size={16} aria-hidden />}>Por semana</SectionTitle>
+          <Card className="divide-y divide-line">
+            {weeks.map((week) => (
+              <Link
+                key={week.weekStart}
+                href={`/finanzas?vista=semana&semana=${week.weekStart}`}
+                className="pressable flex min-h-14 items-center gap-3 px-3 py-2"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{formatDateRange(week.from, week.to)}</span>
+                  <span className="block text-xs text-muted tabular-nums">
+                    Gastos {formatMoney(week.expense, { round: true })}
+                    {week.income > 0 && ` · Ingresos ${formatMoney(week.income, { round: true })}`}
+                  </span>
+                </span>
+                <span className={cn("font-bold tabular-nums", week.net < 0 && "text-danger")}>
+                  {formatMoney(week.net, { round: true, signed: true })}
+                </span>
+                <ChevronRight size={18} className="text-muted" aria-hidden />
+              </Link>
+            ))}
           </Card>
         </section>
       )}
+
+      <AccountsStrip accounts={accounts} />
+      <BudgetSection categories={categories} budgets={budgets} transactions={transactions} />
+      <CategoryBreakdown transactions={transactions} categories={categories} />
 
       <section className="space-y-2">
         <SectionTitle icon={<BarChart3 size={16} aria-hidden />}>Últimos 6 meses</SectionTitle>
@@ -235,60 +232,62 @@ export default async function FinanzasPage({ searchParams }: { searchParams: Pro
         </Card>
       </section>
 
-      <section className="space-y-2">
-        <SectionTitle icon={<ListOrdered size={16} aria-hidden />}>Movimientos</SectionTitle>
-        {days.length === 0 ? (
-          <Card className="px-4 py-5 text-center text-sm text-muted">
-            Sin movimientos en este mes. Registra uno con el botón +.
-          </Card>
-        ) : (
-          days.map((day) => (
-            <div key={day.localDate} className="space-y-1.5">
-              <div className="flex items-baseline justify-between px-1 text-xs font-semibold text-muted">
-                <span className="first-letter:uppercase">
-                  {day.localDate === today
-                    ? "Hoy"
-                    : day.localDate === addDaysToLocalDate(today, -1)
-                      ? "Ayer"
-                      : formatDisplayDate(day.localDate)}
-                </span>
-                {day.net !== 0 && <span className="tabular-nums">{formatMoney(day.net, { signed: true })}</span>}
-              </div>
-              <Card className="divide-y divide-line">
-                {day.items.map((transaction) => {
-                  const account = accountById.get(transaction.accountId);
-                  const category = transaction.categoryId ? categoryById.get(transaction.categoryId) : undefined;
-                  const isTransfer = transaction.kind === "transferencia";
-                  const title = isTransfer
-                    ? "Transferencia"
-                    : (category?.name ?? (transaction.kind === "ingreso" ? "Ingreso" : "Gasto"));
-                  const accounts = isTransfer
-                    ? `${account?.name ?? "?"} → ${accountById.get(transaction.toAccountId ?? "")?.name ?? "?"}`
-                    : (account?.name ?? "");
-                  return (
-                    <TransactionRow
-                      key={transaction.id}
-                      transaction={transaction}
-                      title={title}
-                      subtitle={transaction.note ? `${transaction.note} · ${accounts}` : accounts}
-                      color={category?.color ?? null}
-                    />
-                  );
-                })}
-              </Card>
-            </div>
-          ))
-        )}
-      </section>
-    </Page>
+      <MovementsList
+        transactions={transactions}
+        accounts={accounts}
+        categories={categories}
+        today={today}
+        emptyText="Sin movimientos en este mes. Registra uno con el botón +."
+      />
+    </>
   );
 }
 
-function Stat({ label, value, className }: { label: string; value: string; className?: string }) {
+function ViewToggle({ view, weekHref, monthHref }: { view: "semana" | "mes"; weekHref: string; monthHref: string }) {
+  const item = (active: boolean) =>
+    cn(
+      "pressable flex min-h-10 flex-1 items-center justify-center rounded-lg text-sm font-semibold",
+      active ? "bg-surface text-fg shadow-sm" : "text-muted"
+    );
   return (
-    <div className="min-w-0 px-2 text-center">
-      <p className={cn("truncate text-lg font-bold tabular-nums", className)}>{value}</p>
-      <p className="text-xs font-medium text-muted">{label}</p>
-    </div>
+    <nav aria-label="Periodo" className="flex gap-1 rounded-xl bg-surface-2 p-1">
+      <Link href={weekHref} aria-current={view === "semana" ? "page" : undefined} className={item(view === "semana")}>
+        Semana
+      </Link>
+      <Link href={monthHref} aria-current={view === "mes" ? "page" : undefined} className={item(view === "mes")}>
+        Mes
+      </Link>
+    </nav>
+  );
+}
+
+function PeriodNav({
+  label,
+  previousHref,
+  previousLabel,
+  nextHref,
+  nextLabel,
+}: {
+  label: string;
+  previousHref: string;
+  previousLabel: string;
+  nextHref: string | null;
+  nextLabel: string;
+}) {
+  const button = "pressable flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-surface";
+  return (
+    <nav aria-label={previousLabel.includes("Semana") ? "Semana" : "Mes"} className="flex items-center justify-between">
+      <Link href={previousHref} aria-label={previousLabel} className={button}>
+        <ChevronLeft size={20} aria-hidden />
+      </Link>
+      <p className="font-semibold first-letter:uppercase">{label}</p>
+      {nextHref ? (
+        <Link href={nextHref} aria-label={nextLabel} className={button}>
+          <ChevronRight size={20} aria-hidden />
+        </Link>
+      ) : (
+        <span className="h-11 w-11" aria-hidden />
+      )}
+    </nav>
   );
 }

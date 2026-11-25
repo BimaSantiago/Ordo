@@ -1,4 +1,4 @@
-# Life OS
+# Ordo
 
 App personal (PWA) para organizar hábitos, día a día, proyectos, entrenamientos, finanzas y notas. Ver `CLAUDE.md` para el contexto completo del producto y las decisiones de diseño.
 

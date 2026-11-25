@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     const tables: Record<string, Record<string, unknown>[]> = {};
     for (const { table } of EXPORT_TABLES) tables[table] = await fetchAll(table);
-    const body = JSON.stringify({ app: "Life OS", exportedAt: new Date().toISOString(), version: 1, tables }, null, 2);
+    const body = JSON.stringify({ app: "Ordo", exportedAt: new Date().toISOString(), version: 1, tables }, null, 2);
     return new Response(body, {
       headers: {
         "Content-Type": "application/json; charset=utf-8",

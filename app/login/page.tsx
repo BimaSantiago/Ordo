@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { signIn } from "./actions";
 
 export default async function LoginPage({
@@ -10,8 +11,9 @@ export default async function LoginPage({
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold">Life OS</h1>
+        <div className="flex flex-col items-center text-center">
+          <Image src="/icons/icon.svg" alt="" width={64} height={64} priority className="mb-3 rounded-2xl" />
+          <h1 className="text-2xl font-semibold">Ordo</h1>
           <p className="mt-1 text-sm text-muted">Inicia sesión para continuar</p>
         </div>
 

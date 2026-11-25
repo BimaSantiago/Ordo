@@ -43,7 +43,7 @@ export function MfaSettings() {
     }
     const { data, error: enrollError } = await supabase.auth.mfa.enroll({
       factorType: "totp",
-      friendlyName: `Life OS ${new Date().toISOString().slice(0, 10)}`,
+      friendlyName: `Ordo ${new Date().toISOString().slice(0, 10)}`,
     });
     setBusy(false);
     if (enrollError) return setError(enrollError.message);

@@ -15,19 +15,19 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Life OS",
+  title: "Ordo",
   description: "Panel personal para hábitos, tareas, gimnasio, finanzas y notas.",
   manifest: "/manifest.json",
   icons: { icon: "/icons/icon.svg", apple: "/icons/apple-touch-icon.png" },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Life OS",
+    title: "Ordo",
   },
 };
 
-const LIGHT_CANVAS = "#f4f8f8";
-const DARK_CANVAS = "#0b1214";
+const LIGHT_CANVAS = "#f7f5f2";
+const DARK_CANVAS = "#0f0d1d";
 
 export async function generateViewport(): Promise<Viewport> {
   const { theme } = await getSettings();

@@ -2,7 +2,7 @@
 // viejo de Turbopack, pero igual se guardan copias para poder probar el modo sin conexión.
 const DEV = new URL(self.location.href).searchParams.has("dev");
 
-const CACHE_NAME = "life-os-v4";
+const CACHE_NAME = "life-os-v5";
 // Última versión de cada pantalla (HTML), para poder verla sin señal. Tiene datos personales:
 // se borra al cerrar sesión (mensaje "clear-pages" desde la app).
 const PAGES_CACHE = "life-os-pages-v1";

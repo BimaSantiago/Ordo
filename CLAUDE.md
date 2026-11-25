@@ -158,7 +158,8 @@ Todas las tablas llevan `user_id`, `created_at`, `updated_at` y **RLS activado**
 
 - ~~Definir el modelo de hábitos~~ Decidido: sí/no o meta numérica al día, todos los días o ciertos días (sin "X veces por semana").
 - Confirmar si Fitia escribe en Health Connect.
-- Decidir nombre y diseño visual de la app.
+- Nombre: **Ordo** (decidido). Ícono: **Encerrado** (trazo de marcador índigo sobre mandarina, decidido el 2026-11-01), ya aplicado junto con su paleta (sin verde). Falta elegir logotipo (opciones en el lienzo "Ordo · Identidad visual": todo a mano, la o es el ícono o palabra encerrada).
+- Cambiar la biblioteca de ejercicios (free-exercise-db): al usuario no le gustan los nombres en inglés, las fotos ni la cantidad de ejercicios raros. Pidió ExerciseDB con GIFs; su plan gratis tiene GIFs de 180 px, no permite guardar datos ni caché sin conexión y solo está en inglés. Decisión pendiente.
 
 ## 10. Primera tarea sugerida
 
@@ -194,7 +195,7 @@ Este proyecto usa **Next.js 16**, que reemplazó la convención `middleware.ts` 
 
 ### Sistema visual y navegación
 
-- **Tokens de color** en `app/globals.css` (claro y oscuro con `prefers-color-scheme`), expuestos a Tailwind con `@theme inline`: `canvas`, `surface`, `surface-2`, `fg`, `muted`, `line`, `primary` (teal), `primary-soft`, `on-primary`, `accent` (naranja, solo para el "+"), `danger`, `success`. **No uses `slate-*`, `white` ni hex en componentes**: usa `bg-surface text-fg border-line`, etc. Las excepciones son los colores de las materias (vienen de la base) y el texto blanco sobre ellos.
+- **Tokens de color** en `app/globals.css` (claro y oscuro con `prefers-color-scheme`), expuestos a Tailwind con `@theme inline`: `canvas`, `surface`, `surface-2`, `fg`, `muted`, `line`, `primary` (índigo), `primary-soft`, `on-primary`, `accent` (mandarina, solo para el "+", con `on-accent` en tinta índigo como el ícono), `danger`, `success` (azul cobalto: la paleta no lleva verde). **No uses `slate-*`, `white` ni hex en componentes**: usa `bg-surface text-fg border-line`, etc. Las excepciones son los colores de las materias (vienen de la base) y el texto blanco sobre ellos.
 - Fuente Plus Jakarta Sans (`next/font`, variable `--font-jakarta`). Iconos de `lucide-react` (SVG, sin emojis); los botones que solo tienen icono llevan `aria-label`.
 - Base móvil en `globals.css`: sin destello al tocar, `overscroll-behavior: none`, inputs de 16px (evita el zoom de iOS), clase `.pressable` para dar respuesta al presionar. `viewport` con `viewportFit: "cover"` y `themeColor` por esquema; las barras fijas usan `env(safe-area-inset-*)`.
 - Primitivas en `components/ui/`: `Page` (contenedor con espacio para la barra inferior; `wide` para la tabla semanal), `PageHeader` (título y enlace de regreso), `Card`/`SectionTitle`, `Button`, `IconButton`, `Chip` y `Sheet` (panel inferior sobre `<dialog>` nativo, con foco atrapado y cierre con Esc/atrás).
@@ -322,7 +323,8 @@ Hub en `/gimnasio` con enlaces a `/gimnasio/entrenar`, `/gimnasio/progreso`, `/g
 - **Lógica pura con pruebas:** `lib/finance/money.ts` (`parseAmount` acepta "1,250", "99,5", "$150"; `formatMoney`) y `lib/finance/summary.ts` (meses `YYYY-MM`, `summarize`, `expensesByCategory`, `groupByDay`, `monthlyTotals`, `budgetStatus`: alerta desde 80%, excedido al pasar 100%). Las transferencias no cuentan como gasto ni ingreso.
 - `lib/finance/load.ts`: lecturas para Server Components (convierte `numeric`, pagina de 1000 en 1000).
 - **Captura:** pestaña "Dinero" del panel "+" (`components/finance/money-form.tsx`). Recuerda la última cuenta y cachea cuentas y categorías en `localStorage` para usarse sin señal. `saveTransaction` y `deleteTransaction` pasan por `runOrQueue`; cuentas, categorías y presupuestos se editan con señal.
-- **Pantallas:** `/finanzas?mes=YYYY-MM` (resumen, saldos, presupuesto, gasto por categoría, gráfica de 6 meses `MonthlyChart`, movimientos por día; tocar uno abre el panel con `prefill.transaction`), `/finanzas/cuentas` y `/finanzas/categorias` (límites). Tarjeta "Gastado hoy · mes" en Hoy.
+- **Pantallas:** `/finanzas` abre en la **vista semanal** (lunes a domingo, `?vista=semana&semana=YYYY-MM-DD`): resumen, comparación con la semana anterior y promedio al día, gasto por día (`WeekDaysChart`), saldos, gasto por categoría y movimientos. La **vista mensual** (`?vista=mes&mes=YYYY-MM`; `?mes=` solo también la abre) agrega "Por semana" (semanas recortadas al mes con `weeksOfMonth`, cada una liga a su detalle), presupuesto y la gráfica de 6 meses `MonthlyChart`. Las piezas compartidas viven en `app/finanzas/sections.tsx`. Tocar un movimiento abre el panel con `prefill.transaction`. También `/finanzas/cuentas` y `/finanzas/categorias` (límites). Tarjeta "Gastado hoy · semana" en Hoy.
+- Semanas con pruebas en `lib/finance/summary.ts`: `dailyTotals`, `weeksOfMonth` (la suma de las semanas da el mes), `summarizeRange` y `formatDateRange`. El presupuesto sigue siendo mensual.
 
 ### Proyectos, notas e ideas (`app/proyectos/`, `app/notas/`)
 
@@ -377,7 +379,7 @@ Al aplicar migraciones nuevas, sigue la convención de nombre `NNNNNNNNNNNNNN_de
 
 ### PWA
 
-- `public/manifest.json` + `public/icons/`: iconos provisionales (palomita en círculo sobre teal) **generados** por `node scripts/generate-icons.mjs` desde un SVG — `any` 192/512, `maskable` 512, `apple-touch-icon` y `icon.svg` (favicon, declarado en `metadata.icons` de `app/layout.tsx`). Diseño final pendiente (sección 9). Si cambian los iconos, sube `CACHE_NAME` en `public/sw.js` para que el celular deje de servir los viejos.
+- `public/manifest.json` + `public/icons/`: iconos del diseño "Encerrado" (trazo índigo que encierra un punto blanco, sobre mandarina) **generados** por `node scripts/generate-icons.mjs` desde un SVG — `any` 192/512, `maskable` 512, `apple-touch-icon` y `icon.svg` (favicon, declarado en `metadata.icons` de `app/layout.tsx`). Si cambian los iconos, sube `CACHE_NAME` en `public/sw.js` para que el celular deje de servir los viejos.
 - Despliegue en Vercel desde `main`. Las URLs por deployment (`ordo-<hash>-…vercel.app`) están protegidas por Vercel Authentication; para instalar la PWA usa el dominio de producción.
 - `public/sw.js`: service worker manual, sin Workbox ni `next-pwa`. Se descartó `next-pwa` porque no tiene mantenimiento y su cadena de dependencias tiene vulnerabilidades altas en `npm audit`.
   - Assets: cache-first en producción. En desarrollo se registra como `/sw.js?dev=1` y va primero a la red para no servir código viejo de Turbopack.
