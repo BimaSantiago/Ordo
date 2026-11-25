@@ -1,13 +1,13 @@
 {
   "id": "/",
-  "name": "Life OS",
-  "short_name": "Life OS",
+  "name": "Ordo",
+  "short_name": "Ordo",
   "description": "Panel personal para hábitos, tareas, gimnasio, finanzas y notas.",
   "start_url": "/hoy",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0b1214",
-  "theme_color": "#0b1214",
+  "background_color": "#ff6b1a",
+  "theme_color": "#0f0d1d",
   "orientation": "portrait",
   "lang": "es-MX",
   "icons": [

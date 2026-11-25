@@ -66,7 +66,7 @@ function CategoryForm({
   onDone: () => void;
 }) {
   const [name, setName] = useState(category?.name ?? "");
-  const [color, setColor] = useState(category?.color ?? "#0f766e");
+  const [color, setColor] = useState(category?.color ?? "#4335c9");
   const [limit, setLimit] = useState(budget ? toAmountInput(budget) : "");
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);

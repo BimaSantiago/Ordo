@@ -1,26 +1,27 @@
 @import "tailwindcss";
 
 /*
- * Tokens semánticos (flat, teal + acento naranja). Los componentes usan solo estas
+ * Tokens semánticos con la paleta de Ordo: tinta índigo y acento mandarina, sin verde. "Hecho"
+ * (success) es azul cobalto para distinguirlo del índigo. Los componentes usan solo estas
  * clases (bg-canvas, bg-surface, text-fg, text-muted, border-line, bg-primary...),
  * nunca colores crudos, para que el modo oscuro funcione en toda la app.
  */
 :root {
-  --canvas: #f4f8f8;
+  --canvas: #f7f5f2;
   --surface: #ffffff;
-  --surface-2: #eaf2f1;
-  --fg: #0f2a28;
-  --muted: #5b6b6a;
-  --line: #d5e3e1;
-  --primary: #0f766e;
-  --primary-soft: #d6f1ed;
+  --surface-2: #efebe6;
+  --fg: #1a1446;
+  --muted: #5c5776;
+  --line: #e3ddd6;
+  --primary: #4335c9;
+  --primary-soft: #e9e6ff;
   --on-primary: #ffffff;
-  --accent: #ea580c;
-  --on-accent: #ffffff;
-  --danger: #dc2626;
+  --accent: #ff6b1a;
+  --on-accent: #1a1446;
+  --danger: #c62828;
   --danger-soft: #fde8e8;
-  --success: #15803d;
-  --success-soft: #dcf5e4;
+  --success: #1f63d6;
+  --success-soft: #e3edff;
   color-scheme: light;
 }
 
@@ -30,41 +31,41 @@
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --canvas: #0b1214;
-    --surface: #121c1f;
-    --surface-2: #1a272a;
-    --fg: #e4efee;
-    --muted: #93a6a5;
-    --line: #26373a;
-    --primary: #2dd4bf;
-    --primary-soft: #123532;
-    --on-primary: #042f2e;
-    --accent: #fb923c;
-    --on-accent: #1c0a00;
+    --canvas: #0f0d1d;
+    --surface: #17142b;
+    --surface-2: #211d3a;
+    --fg: #ece9f7;
+    --muted: #a19cbd;
+    --line: #2d2850;
+    --primary: #a9a3ff;
+    --primary-soft: #27225a;
+    --on-primary: #16123d;
+    --accent: #ff8a45;
+    --on-accent: #1a1446;
     --danger: #f87171;
     --danger-soft: #3a1717;
-    --success: #4ade80;
-    --success-soft: #11301d;
+    --success: #7cb2ff;
+    --success-soft: #16264a;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --canvas: #0b1214;
-  --surface: #121c1f;
-  --surface-2: #1a272a;
-  --fg: #e4efee;
-  --muted: #93a6a5;
-  --line: #26373a;
-  --primary: #2dd4bf;
-  --primary-soft: #123532;
-  --on-primary: #042f2e;
-  --accent: #fb923c;
-  --on-accent: #1c0a00;
+  --canvas: #0f0d1d;
+  --surface: #17142b;
+  --surface-2: #211d3a;
+  --fg: #ece9f7;
+  --muted: #a19cbd;
+  --line: #2d2850;
+  --primary: #a9a3ff;
+  --primary-soft: #27225a;
+  --on-primary: #16123d;
+  --accent: #ff8a45;
+  --on-accent: #1a1446;
   --danger: #f87171;
   --danger-soft: #3a1717;
-  --success: #4ade80;
-  --success-soft: #11301d;
+  --success: #7cb2ff;
+  --success-soft: #16264a;
   color-scheme: dark;
 }
 
